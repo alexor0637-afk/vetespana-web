@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
 import CitySelect from './CitySelect'
 import { ciudadSlug } from '@/lib/ciudad-slug'
@@ -57,4 +57,12 @@ export default function SearchBar({ initialCiudad = '', initialQuery = '' }: Pro
       </button>
     </form>
   )
+}
+
+/** Buscador con los valores de la URL (?ciudad=&q=). Va dentro de un <Suspense>. */
+export function SearchBarDesdeUrl() {
+  const sp = useSearchParams()
+  const ciudad = sp.get('ciudad') ?? ''
+  const q = sp.get('q') ?? ''
+  return <SearchBar key={`${ciudad}|${q}`} initialCiudad={ciudad} initialQuery={q} />
 }

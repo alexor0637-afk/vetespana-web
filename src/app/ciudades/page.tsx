@@ -36,7 +36,7 @@ export default function CiudadesPage() {
               <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                 <span aria-hidden>{COMUNIDAD_EMOJI[comunidad] ?? '📍'}</span>
                 <Link
-                  href={`/clinicas?comunidad=${encodeURIComponent(comunidad)}`}
+                  href={`/comunidades/${ciudadSlug(comunidad)}`}
                   className="hover:text-teal-600"
                 >
                   {comunidad}

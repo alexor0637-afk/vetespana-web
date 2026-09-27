@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { CIUDADES_POR_COMUNIDAD, COMUNIDAD_EMOJI } from '@/types/clinic'
+import { ciudadSlug } from '@/lib/ciudad-slug'
 import mapData from '@/data/spain-paths.json'
 
 const { width, height, paths, canariasRect } = mapData as {
@@ -65,7 +66,7 @@ export default function SpainMap() {
           return (
             <Link
               key={comunidad}
-              href={`/clinicas?comunidad=${encodeURIComponent(comunidad)}`}
+              href={`/comunidades/${ciudadSlug(comunidad)}`}
               aria-label={`Ver clínicas veterinarias en ${comunidad}`}
             >
               <path

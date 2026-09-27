@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { Suspense } from 'react'
 import NearbyClient from '@/components/NearbyClient'
 
 export const metadata: Metadata = {
@@ -27,9 +26,7 @@ export default function CercaDeMiPage() {
         </p>
       </div>
 
-      <Suspense>
-        <NearbyClient />
-      </Suspense>
+      <NearbyClient />
 
       {/* Texto SEO de apoyo */}
       <div className="mt-12 max-w-3xl mx-auto text-sm text-gray-500 space-y-3 border-t border-gray-100 pt-8">

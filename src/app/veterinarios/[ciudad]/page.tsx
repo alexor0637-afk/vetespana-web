@@ -1,24 +1,22 @@
-import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { searchClinics } from '@/lib/search'
+import { searchClinics } from '@/lib/datos'
 import { CIUDAD_DISPLAY } from '@/types/clinic'
-import { CIUDAD_POR_SLUG } from '@/lib/ciudad-slug'
+import { CIUDAD_POR_SLUG, ciudadSlug } from '@/lib/ciudad-slug'
 import { cityFacts } from '@/lib/city-content'
 import ClinicGrid from '@/components/ClinicGrid'
 import SearchBar from '@/components/SearchBar'
 import CitySeoContent from '@/components/CitySeoContent'
 
 // URL limpia de ciudad: el activo de SEO local ("veterinario en {ciudad}").
-// ISR: se cachea en el edge y se regenera cada hora o en cada deploy.
-export const revalidate = 3600
+// Se genera en el build una página por ciudad.
+export const dynamicParams = false
 
 interface Props {
   params: Promise<{ ciudad: string }>
 }
 
-// Pre-generamos las 368 páginas de ciudad en el build (rápido: usan la caché de datos).
 export function generateStaticParams() {
   return Object.keys(CIUDAD_POR_SLUG).map((ciudad) => ({ ciudad }))
 }
@@ -45,10 +43,10 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
 
   const { ciudad, comunidad } = entry
   const display = CIUDAD_DISPLAY[ciudad] ?? ciudad
+  const urlComunidad = `/comunidades/${ciudadSlug(comunidad)}`
 
   const filtradas = await searchClinics({ ciudad })
   const PAGE = 24
-  const apiQs = new URLSearchParams({ ciudad })
   const { count24h, topEsp } = cityFacts(filtradas)
 
   return (
@@ -59,7 +57,7 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
           Clínicas
         </Link>
         <span>/</span>
-        <Link href={`/clinicas?comunidad=${encodeURIComponent(comunidad)}`} className="hover:text-teal-600">
+        <Link href={urlComunidad} className="hover:text-teal-600">
           {comunidad}
         </Link>
         <span>/</span>
@@ -68,9 +66,7 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
 
       {/* Búsqueda */}
       <div className="mb-6">
-        <Suspense>
-          <SearchBar initialCiudad={ciudad} />
-        </Suspense>
+        <SearchBar initialCiudad={ciudad} />
       </div>
 
       {/* Título SEO orientado a "veterinarios en {ciudad}" */}
@@ -82,17 +78,17 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
       </div>
 
       {filtradas.length > 0 ? (
-        <ClinicGrid initial={filtradas.slice(0, PAGE)} total={filtradas.length} query={apiQs.toString()} />
+        <ClinicGrid initial={filtradas.slice(0, PAGE)} total={filtradas.length} filtro={{ ciudad }} />
       ) : (
         <div className="text-center py-20 text-gray-400">
           <div className="text-5xl mb-4">🔍</div>
           <p className="text-lg font-medium text-gray-600 mb-2">Aún no hay clínicas listadas en {display}</p>
           <p className="text-sm">
             Mira las{' '}
-            <Link href={`/clinicas?comunidad=${encodeURIComponent(comunidad)}`} className="text-teal-600 underline">
+            <Link href={urlComunidad} className="text-teal-600 underline">
               clínicas de {comunidad}
             </Link>{' '}
-            o las más cercanas.
+            o las <Link href="/cerca-de-mi" className="text-teal-600 underline">más cercanas</Link>.
           </p>
         </div>
       )}

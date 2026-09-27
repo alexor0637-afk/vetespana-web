@@ -1,19 +1,18 @@
 import type { MetadataRoute } from 'next'
-import { getAllClinicSlugs } from '@/lib/airtable'
-import { CIUDADES_POR_COMUNIDAD } from '@/types/clinic'
+import { getAllClinics } from '@/lib/datos'
+import { CIUDADES_POR_COMUNIDAD, COMUNIDADES } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
 import { GUIAS } from '@/data/guias'
 
-// Dinámico: se genera bajo demanda (Google lo pide de vez en cuando). Así no
-// depende de Airtable durante el build. Usa la caché de datos, o sea que es rápido.
-export const dynamic = 'force-dynamic'
+// Se genera en el build como archivo estático (sitemap.xml).
+export const dynamic = 'force-static'
 
-// Fecha de la última actualización significativa del contenido del directorio
-// (alta de clínicas/ciudades, cambios de copy, etc.). Se usa como `lastModified`
-// estable en el sitemap. IMPORTANTE: usar una fecha FIJA, no `new Date()`: si cada
-// rastreo dijera "modificada ahora mismo", Google acaba ignorando la señal lastmod.
-// → Al cargar clínicas nuevas o tocar contenido, sube esta fecha y haz deploy.
-const CONTENIDO_ACTUALIZADO = new Date('2026-06-11')
+// Fecha de la última actualización significativa del contenido general (páginas
+// de ciudad, comunidad y estáticas). Las fichas usan su propia fecha real de
+// modificación en la base. IMPORTANTE: fecha FIJA, no `new Date()`: si cada
+// generación dijera "modificada ahora", Google acaba ignorando la señal lastmod.
+// → Al cambiar contenido general (ciudades, textos…), sube esta fecha.
+const CONTENIDO_ACTUALIZADO = new Date('2026-09-27')
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://www.vetespana.es'
@@ -28,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/ciudades`, lastModified: CONTENIDO_ACTUALIZADO, changeFrequency: 'weekly', priority: 0.7 },
   ]
 
-  // Guías informacionales — cada una con su fecha real de actualización (precisa)
+  // Guías informacionales — cada una con su fecha real de actualización
   const guiaPages: MetadataRoute.Sitemap = GUIAS.map((g) => ({
     url: `${baseUrl}/guias/${g.slug}`,
     lastModified: new Date(g.actualizado),
@@ -36,17 +35,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  // Una URL por comunidad autónoma — valor semántico alto, poca duplicación
-  const comunidadPages: MetadataRoute.Sitemap = Object.keys(CIUDADES_POR_COMUNIDAD).map((comunidad) => ({
-    url: `${baseUrl}/clinicas?comunidad=${encodeURIComponent(comunidad)}`,
+  // Una URL limpia por comunidad autónoma
+  const comunidadPages: MetadataRoute.Sitemap = COMUNIDADES.map((comunidad) => ({
+    url: `${baseUrl}/comunidades/${ciudadSlug(comunidad)}`,
     lastModified: CONTENIDO_ACTUALIZADO,
     changeFrequency: 'weekly' as const,
     priority: 0.75,
   }))
 
-  // Una URL por ciudad — el mayor activo de SEO local ("veterinario en {ciudad}").
-  // URL limpia /veterinarios/{slug} (antes ?ciudad=). Cada una tiene H1, título,
-  // descripción y canonical propios (no duplican).
+  // Una URL por ciudad — el mayor activo de SEO local ("veterinario en {ciudad}")
   const ciudadPages: MetadataRoute.Sitemap = Object.values(CIUDADES_POR_COMUNIDAD)
     .flat()
     .map((ciudad) => ({
@@ -56,17 +53,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }))
 
-  // Fichas individuales — el grueso del valor SEO (páginas únicas por clínica)
-  const slugs = await getAllClinicSlugs()
-  const clinicPages: MetadataRoute.Sitemap = slugs.map((slug) => ({
-    url: `${baseUrl}/clinicas/${slug}`,
-    lastModified: CONTENIDO_ACTUALIZADO,
+  // Fichas individuales — el grueso del valor SEO, con su fecha real de modificación
+  const clinicPages: MetadataRoute.Sitemap = (await getAllClinics()).map((c) => ({
+    url: `${baseUrl}/clinicas/${c.slug}`,
+    lastModified: c.actualizado ? new Date(c.actualizado) : CONTENIDO_ACTUALIZADO,
     changeFrequency: 'weekly' as const,
     priority: 0.8,
   }))
 
-  // NOTA: Las URLs ?especialidad= y las combinaciones de filtros se excluyen a propósito
-  // (contenido solapado que gasta presupuesto de rastreo). Google las descubrirá por los
-  // enlaces internos. Sí incluimos ?ciudad= porque son páginas locales de alto valor SEO.
+  // NOTA: las combinaciones de filtros de /clinicas (?especialidad=, ?q=…) se excluyen
+  // a propósito: se calculan en el navegador y comparten el HTML de /clinicas.
   return [...staticPages, ...guiaPages, ...comunidadPages, ...ciudadPages, ...clinicPages]
 }

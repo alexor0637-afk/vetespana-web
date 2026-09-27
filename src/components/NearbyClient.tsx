@@ -5,9 +5,33 @@ import { Navigation, LoaderCircle, MapPin } from 'lucide-react'
 import ClinicCard from '@/components/ClinicCard'
 import SearchBar from '@/components/SearchBar'
 import type { Clinic } from '@/types/clinic'
+import { cargarIndice } from '@/lib/indice'
 
 type Resultado = Clinic & { distanciaKm: number }
 type Estado = 'inicio' | 'cargando' | 'ok' | 'denegado' | 'error'
+
+// Distancia en km entre dos puntos (fórmula de Haversine)
+function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Las 30 más cercanas. Se calcula en el navegador con el índice de clínicas:
+// la ubicación del usuario no sale de su dispositivo.
+async function masCercanas(lat: number, lng: number): Promise<Resultado[]> {
+  const clinicas = await cargarIndice()
+  return clinicas
+    .filter((c) => c.lat !== undefined && c.lng !== undefined)
+    .map((c) => ({ ...c, distanciaKm: distanciaKm(lat, lng, c.lat!, c.lng!) }))
+    .sort((a, b) => a.distanciaKm - b.distanciaKm)
+    .slice(0, 30)
+    .map((c) => ({ ...c, distanciaKm: Math.round(c.distanciaKm * 10) / 10 }))
+}
 
 export default function NearbyClient() {
   const [estado, setEstado] = useState<Estado>('inicio')
@@ -23,10 +47,7 @@ export default function NearbyClient() {
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords
-          const res = await fetch(`/api/cerca?lat=${latitude}&lng=${longitude}`)
-          if (!res.ok) throw new Error('error')
-          const data = await res.json()
-          setResultados(data.resultados ?? [])
+          setResultados(await masCercanas(latitude, longitude))
           setEstado('ok')
         } catch {
           setEstado('error')

@@ -75,7 +75,7 @@ export default function Footer() {
             {COMUNIDADES.map((comunidad) => (
               <Link
                 key={comunidad}
-                href={`/clinicas?comunidad=${encodeURIComponent(comunidad)}`}
+                href={`/comunidades/${ciudadSlug(comunidad)}`}
                 className="hover:text-white transition-colors"
               >
                 {comunidad}

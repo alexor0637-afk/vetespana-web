@@ -28,6 +28,11 @@ export interface Clinic {
   plan: Plan
   valoracionMedia?: number
   verificada: boolean
+  /** Coordenadas (para "Cerca de mí") */
+  lat?: number
+  lng?: number
+  /** Última modificación en la base (ISO), para el lastmod del sitemap */
+  actualizado?: string
 }
 
 export interface Review {
@@ -121,7 +126,8 @@ export const CIUDADES: readonly string[] = Object.values(CIUDADES_POR_COMUNIDAD)
   .flat()
   .sort((a, b) => a.localeCompare(b, 'es'))
 
-// Nombres de display para valores con ortografía simplificada en Airtable
+// Nombres de display para valores con ortografía simplificada (heredada de Airtable;
+// los slugs de las URLs salen de estos valores, así que no se cambian)
 export const CIUDAD_DISPLAY: Record<string, string> = {
   'A Coruña': 'A Coruña',
   'Logrono': 'Logroño',

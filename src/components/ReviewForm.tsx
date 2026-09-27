@@ -5,10 +5,14 @@ import { Star } from 'lucide-react'
 
 interface Props {
   clinicId: string
+  clinicSlug: string
   clinicNombre: string
 }
 
-export default function ReviewForm({ clinicId, clinicNombre }: Props) {
+// Envía la reseña al buzón de Cloudflare (/api/reviews, worker/index.ts). El
+// servidor de casa la recoge cada noche y la guarda en Postgres pendiente de
+// aprobar (en NocoDB); se publica en la siguiente generación de la web.
+export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props) {
   const [nombre, setNombre] = useState('')
   const [puntuacion, setPuntuacion] = useState(0)
   const [hovered, setHovered] = useState(0)
@@ -25,7 +29,7 @@ export default function ReviewForm({ clinicId, clinicNombre }: Props) {
       const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clinicId, nombreUsuario: nombre, puntuacion, comentario, website }),
+        body: JSON.stringify({ clinicaId: clinicId, slug: clinicSlug, nombreUsuario: nombre, puntuacion, comentario, website }),
       })
       if (res.ok) {
         setEstado('ok')

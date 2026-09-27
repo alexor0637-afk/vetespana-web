@@ -51,7 +51,11 @@ export default function CitySelect({ value, onChange, placeholder = 'Todas las c
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
 
-  useEffect(() => setHighlight(0), [query])
+  // Al cambiar el texto buscado, el resaltado vuelve a la primera opción
+  function buscar(texto: string) {
+    setQuery(texto)
+    setHighlight(0)
+  }
 
   function select(val: string) {
     onChange(val)
@@ -79,13 +83,14 @@ export default function CitySelect({ value, onChange, placeholder = 'Todas las c
       <input
         type="text"
         role="combobox"
+        aria-controls="lista-ciudades"
         aria-expanded={open}
         aria-autocomplete="list"
         aria-label="Buscar ciudad"
         value={open ? query : selectedDisplay}
         placeholder={placeholder}
-        onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
-        onFocus={() => { setQuery(''); setOpen(true) }}
+        onChange={(e) => { buscar(e.target.value); setOpen(true) }}
+        onFocus={() => { buscar(''); setOpen(true) }}
         onKeyDown={onKeyDown}
         className={`w-full pl-9 py-3 rounded-xl border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-text ${
           value && !open ? 'pr-9' : 'pr-3'
@@ -104,10 +109,14 @@ export default function CitySelect({ value, onChange, placeholder = 'Todas las c
 
       {open && (
         <ul
+          id="lista-ciudades"
+          role="listbox"
           ref={listRef}
           className="absolute z-30 mt-1 w-full max-h-72 overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg py-1 text-sm"
         >
           <li
+            role="option"
+            aria-selected={!value}
             onMouseDown={(e) => { e.preventDefault(); select('') }}
             className="px-3 py-2 cursor-pointer text-gray-500 hover:bg-gray-50"
           >
@@ -116,6 +125,8 @@ export default function CitySelect({ value, onChange, placeholder = 'Todas las c
           {results.map((c, i) => (
             <li
               key={c.value}
+              role="option"
+              aria-selected={i === highlight}
               onMouseDown={(e) => { e.preventDefault(); select(c.value) }}
               onMouseEnter={() => setHighlight(i)}
               className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-2 ${

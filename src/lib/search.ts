@@ -1,8 +1,10 @@
-import { getClinics } from './airtable'
 import type { Clinic } from '@/types/clinic'
+import { CIUDADES_POR_COMUNIDAD } from '@/types/clinic'
 
-// Búsqueda + filtros + orden del listado, compartida entre la página /clinicas
-// (render inicial en servidor) y la API /api/clinicas (carga de más al hacer scroll).
+// Búsqueda + filtros + orden del listado. Es una función PURA (no lee ninguna base):
+// la usan tanto las páginas generadas en el build como el navegador, que filtra
+// el índice /datos/clinicas.json (filtros de /clinicas y scroll infinito).
+// Así el orden del servidor y el del navegador son siempre el mismo.
 
 function norm(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -40,45 +42,55 @@ export interface SearchParams {
   orden?: string
 }
 
-export async function searchClinics(params: SearchParams): Promise<Clinic[]> {
-  const clinicas = await getClinics({
-    ciudad: params.ciudad,
-    comunidad: params.comunidad,
-    especialidad: params.especialidad,
-    urgencias: params.urgencias,
-  })
+// Criterio base: Premium > Verificada. Las verificadas salen SIEMPRE por delante.
+function basePriority(a: Clinic, b: Clinic): number {
+  if (a.plan !== b.plan) return a.plan === 'Premium' ? -1 : 1
+  if (a.verificada !== b.verificada) return a.verificada ? -1 : 1
+  return 0
+}
+
+export function ordenarClinicas(clinicas: Clinic[], orden?: string): Clinic[] {
+  const porNombre = (a: Clinic, b: Clinic) => a.nombre.localeCompare(b.nombre, 'es')
+  const porValoracion = (a: Clinic, b: Clinic) => (b.valoracionMedia ?? 0) - (a.valoracionMedia ?? 0)
+  if (orden === 'nombre') return [...clinicas].sort((a, b) => basePriority(a, b) || porNombre(a, b))
+  // Relevancia y "mejor valoradas": valoración y, a igualdad, nombre (orden estable entre builds)
+  return [...clinicas].sort((a, b) => basePriority(a, b) || porValoracion(a, b) || porNombre(a, b))
+}
+
+export function filtrarClinicas(clinicas: Clinic[], params: SearchParams): Clinic[] {
+  let lista = clinicas
+  if (params.ciudad) {
+    lista = lista.filter((c) => c.ciudad === params.ciudad)
+  } else if (params.comunidad) {
+    const ciudades = new Set(CIUDADES_POR_COMUNIDAD[params.comunidad] ?? [])
+    lista = lista.filter((c) => ciudades.has(c.ciudad))
+  }
+  if (params.especialidad) lista = lista.filter((c) => c.especialidades.includes(params.especialidad!))
+  if (params.urgencias) lista = lista.filter((c) => c.urgencias24h)
 
   // Búsqueda libre tolerante a tildes y a 1 typo por palabra
-  const q = params.q?.trim() ?? ''
-  const queryWords = norm(q).split(/\s+/).filter(Boolean)
-  let filtradas = queryWords.length
-    ? clinicas.filter((c) =>
-        queryWords.every((word) =>
-          fuzzyField(c.nombre, word) ||
-          fuzzyField(c.ciudad, word) ||
-          c.especialidades.some((e) => fuzzyField(e, word)) ||
-          fuzzyField(c.direccion ?? '', word)
-        )
+  const queryWords = norm(params.q?.trim() ?? '').split(/\s+/).filter(Boolean)
+  if (queryWords.length) {
+    lista = lista.filter((c) =>
+      queryWords.every((word) =>
+        fuzzyField(c.nombre, word) ||
+        fuzzyField(c.ciudad, word) ||
+        c.especialidades.some((e) => fuzzyField(e, word)) ||
+        fuzzyField(c.direccion ?? '', word)
       )
-    : clinicas
-
-  // Criterio base: Premium > Verificada > (criterio elegido)
-  // Las verificadas salen SIEMPRE por delante, sea cual sea el orden seleccionado.
-  const basePriority = (a: Clinic, b: Clinic): number => {
-    if (a.plan !== b.plan) return a.plan === 'Premium' ? -1 : 1
-    if (a.verificada !== b.verificada) return a.verificada ? -1 : 1
-    return 0
+    )
   }
+  return ordenarClinicas(lista, params.orden)
+}
 
-  if (params.orden === 'nombre') {
-    filtradas = [...filtradas].sort((a, b) => basePriority(a, b) || a.nombre.localeCompare(b.nombre))
-  } else if (params.orden === 'valoracion') {
-    filtradas = [...filtradas].sort((a, b) => basePriority(a, b) || (b.valoracionMedia ?? 0) - (a.valoracionMedia ?? 0))
-  } else {
-    // Orden por defecto (relevancia): viene de Airtable ya ordenado por Plan > Verificada > Valoración,
-    // pero re-aplicamos aquí por si el caché llegó en otro orden.
-    filtradas = [...filtradas].sort((a, b) => basePriority(a, b) || (b.valoracionMedia ?? 0) - (a.valoracionMedia ?? 0))
+// Lee los filtros de la URL (?ciudad=&comunidad=&especialidad=&urgencias=1&q=&orden=)
+export function paramsDesdeUrl(sp: { get(nombre: string): string | null }): SearchParams {
+  return {
+    ciudad: sp.get('ciudad') ?? undefined,
+    comunidad: sp.get('comunidad') ?? undefined,
+    especialidad: sp.get('especialidad') ?? undefined,
+    urgencias: sp.get('urgencias') === '1',
+    q: sp.get('q') ?? undefined,
+    orden: sp.get('orden') ?? undefined,
   }
-
-  return filtradas
 }

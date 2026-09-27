@@ -1,19 +1,15 @@
 import Link from 'next/link'
-import { Suspense } from 'react'
-import { getFeaturedClinics } from '@/lib/airtable'
+import { clinicasMasDe, getFeaturedClinics } from '@/lib/datos'
 import ClinicCard from '@/components/ClinicCard'
 import SearchBar from '@/components/SearchBar'
 import SpainMap from '@/components/SpainMap'
 import { GUIAS } from '@/data/guias'
 import { ArrowRight, ShieldCheck, Star, Zap } from 'lucide-react'
 
-// ISR: la página se cachea en el edge de Vercel y se regenera cada hora (o en
-// cada deploy). Antes con force-dynamic se re-renderizaba en cada visita (~3s);
-// ahora se sirve cacheada (~100ms). Los datos siguen frescos: 1h o al desplegar.
-export const revalidate = 3600
-
+// Página estática: se genera en el build con los datos de Postgres.
 export default async function HomePage() {
   const clinicas = await getFeaturedClinics()
+  const masDe = await clinicasMasDe()
 
   return (
     <>
@@ -25,13 +21,11 @@ export default async function HomePage() {
             veterinaria cerca de ti
           </h1>
           <p className="text-teal-100 text-lg mb-8">
-            Más de 2.400 clínicas veterinarias en toda España. Con fotos, horarios, especialidades y reseñas reales.
+            Más de {masDe} clínicas veterinarias en toda España. Con fotos, horarios, especialidades y reseñas reales.
           </p>
 
           <div className="bg-white rounded-2xl p-3 shadow-2xl">
-            <Suspense>
-              <SearchBar />
-            </Suspense>
+            <SearchBar />
           </div>
         </div>
       </section>

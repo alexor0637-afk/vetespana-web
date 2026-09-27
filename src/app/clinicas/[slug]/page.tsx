@@ -6,28 +6,22 @@ import {
   MapPin, Phone, Globe, Mail, Clock, ShieldCheck,
   Star, Zap, ArrowLeft, MessageCircle, Share2
 } from 'lucide-react'
-import { getClinicBySlug, getReviewsByClinic } from '@/lib/airtable'
+import { getAllClinicSlugs, getClinicBySlug, getReviewsByClinic } from '@/lib/datos'
 import { GUIAS } from '@/data/guias'
 import ReviewForm from '@/components/ReviewForm'
 import BadgeBox from '@/components/BadgeBox'
 
-// ISR: cada ficha se renderiza la primera vez que se visita y se cachea en el
-// edge 1h (o hasta el siguiente deploy). Antes con force-dynamic eran ~3s en
-// CADA visita; ahora las visitas siguientes (y el robot de Google) se sirven
-// cacheadas (~100ms). dynamicParams=true (por defecto): las clínicas nuevas se
-// renderizan al vuelo sin necesidad de build.
-export const revalidate = 3600
+// Web estática: se genera una ficha por clínica en el build (datos de Postgres).
+export const dynamicParams = false
+
+const SITIO = 'https://www.vetespana.es'
 
 interface Props {
   params: Promise<{ slug: string }>
 }
 
-// Devolvemos [] a propósito: no pre-generamos ninguna ficha en el build (serían
-// miles), pero esto activa el modo ISR — cada ficha se renderiza al visitarla
-// por primera vez y se cachea en el edge (revalidate arriba). dynamicParams=true
-// (por defecto) permite que cualquier slug nuevo se genere al vuelo.
 export async function generateStaticParams() {
-  return []
+  return (await getAllClinicSlugs()).map((slug) => ({ slug }))
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -60,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: clinic.nombre,
       description: metaDesc,
       url: `https://www.vetespana.es/clinicas/${slug}`,
-      images: clinic.fotoPortada ? [{ url: clinic.fotoPortada.url, alt: `Clínica veterinaria ${clinic.nombre}` }] : [],
+      images: clinic.fotoPortada ? [{ url: SITIO + clinic.fotoPortada.url, alt: `Clínica veterinaria ${clinic.nombre}` }] : [],
     },
   }
 }
@@ -164,7 +158,7 @@ export default async function ClinicaPage({ params }: Props) {
     telephone: clinic.telefono,
     url: webAbsoluta ?? fichaUrl,
     sameAs: webAbsoluta ? [fichaUrl] : undefined,
-    image: clinic.fotoPortada?.url ?? undefined,
+    image: clinic.fotoPortada ? SITIO + clinic.fotoPortada.url : undefined,
     openingHoursSpecification: openingHours.length ? openingHours : undefined,
     // Solo declaramos valoración a Google si hay reseñas REALES visibles en la
     // página. Declarar estrellas sin reseñas visibles viola la política de Google
@@ -319,7 +313,7 @@ export default async function ClinicaPage({ params }: Props) {
                 <p className="text-sm text-gray-600">Todavía no hay reseñas para esta clínica. ¡Sé el primero en opinar!</p>
               )}
 
-              <ReviewForm clinicId={clinic.id} clinicNombre={clinic.nombre} />
+              <ReviewForm clinicId={clinic.id} clinicSlug={clinic.slug} clinicNombre={clinic.nombre} />
             </div>
 
             {/* Sello para que la clínica lo ponga en su web → backlink hacia su ficha */}

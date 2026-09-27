@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { clinicasMasDe } from '@/lib/datos'
 
 // Imagen por defecto al compartir el sitio en redes (WhatsApp, Facebook, X…).
 // Las fichas de clínica definen la suya propia (la foto de la clínica) y la sobrescriben.
@@ -6,7 +7,8 @@ export const alt = 'VetEspaña — Encuentra tu veterinario de confianza en Espa
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  const masDe = await clinicasMasDe()
   return new ImageResponse(
     (
       <div
@@ -51,7 +53,7 @@ export default function OpengraphImage() {
             borderRadius: 999,
           }}
         >
-          +2.400 clínicas · fotos, horarios, especialidades y urgencias 24h
+          +{masDe} clínicas · fotos, horarios, especialidades y urgencias 24h
         </div>
       </div>
     ),

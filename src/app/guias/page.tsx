@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import { GUIAS } from '@/data/guias'
+import { clinicasMasDe } from '@/lib/datos'
 
 export const metadata: Metadata = {
   title: 'Guías para dueños de mascotas',
@@ -10,7 +11,8 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://www.vetespana.es/guias' },
 }
 
-export default function GuiasPage() {
+export default async function GuiasPage() {
+  const masDe = await clinicasMasDe()
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <nav className="text-sm text-gray-500 mb-4">
@@ -58,7 +60,7 @@ export default function GuiasPage() {
       <div className="mt-12 bg-teal-50/60 rounded-2xl border border-teal-100 p-6 text-center">
         <h2 className="text-xl font-bold text-gray-900 mb-2">¿Buscas veterinario?</h2>
         <p className="text-gray-600 mb-4">
-          Más de 2.400 clínicas veterinarias en toda España, con horarios, especialidades y urgencias 24h.
+          Más de {masDe} clínicas veterinarias en toda España, con horarios, especialidades y urgencias 24h.
         </p>
         <Link
           href="/clinicas"

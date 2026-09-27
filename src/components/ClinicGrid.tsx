@@ -3,46 +3,44 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ClinicCard from './ClinicCard'
 import type { Clinic } from '@/types/clinic'
+import { filtrarClinicas, type SearchParams } from '@/lib/search'
+import { cargarIndice } from '@/lib/indice'
 
 interface Props {
-  /** Primeras clínicas, ya renderizadas en el servidor (SEO + carga rápida). */
+  /** Primeras clínicas, ya pintadas en el HTML generado (SEO + carga rápida). */
   initial: Clinic[]
   /** Total de resultados del filtro actual. */
   total: number
-  /** Query string de los filtros (ciudad, comunidad, q…) para pedir más a la API. */
-  query: string
+  /** Filtro del listado: las siguientes se sacan del índice con el mismo filtro. */
+  filtro: SearchParams
 }
 
+const LOTE = 24
+
 /**
- * Rejilla con scroll infinito que carga por LOTES desde /api/clinicas. El
- * servidor manda solo las primeras; las demás se piden al bajar. Así una página
- * con miles de resultados no envía todos los datos de golpe (era ~3 MB).
+ * Rejilla con scroll infinito. El HTML trae solo las primeras; al bajar, las
+ * siguientes salen del índice estático (/datos/clinicas.json), filtrado con la
+ * misma función y el mismo orden que usó el build.
+ * Para reiniciarla con otro filtro, el padre le cambia la `key`.
  */
-export default function ClinicGrid({ initial, total, query }: Props) {
+export default function ClinicGrid({ initial, total, filtro }: Props) {
   const [items, setItems] = useState<Clinic[]>(initial)
   const [loading, setLoading] = useState(false)
   const sentinel = useRef<HTMLDivElement>(null)
-
-  // Si cambian los filtros (nuevo render del servidor), reinicia.
-  useEffect(() => {
-    setItems(initial)
-  }, [initial])
+  const clave = JSON.stringify(filtro)
 
   const loadMore = useCallback(async () => {
     if (loading || items.length >= total) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/clinicas?${query}&offset=${items.length}&limit=24`)
-      const data = await res.json()
-      if (Array.isArray(data.items) && data.items.length) {
-        setItems((prev) => [...prev, ...data.items])
-      }
+      const todas = filtrarClinicas(await cargarIndice(), JSON.parse(clave) as SearchParams)
+      setItems((prev) => [...prev, ...todas.slice(prev.length, prev.length + LOTE)])
     } catch {
       /* si falla la red, no rompemos la página */
     } finally {
       setLoading(false)
     }
-  }, [loading, items.length, total, query])
+  }, [loading, items.length, total, clave])
 
   useEffect(() => {
     if (items.length >= total) return

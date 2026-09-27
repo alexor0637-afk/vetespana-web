@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Config local de Claude (preview/launch)
 .claude/
+
+# Cloudflare (wrangler): estado local de `wrangler dev`
+.wrangler/

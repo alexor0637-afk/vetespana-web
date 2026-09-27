@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import React from 'react'
 import { GUIAS, getGuia } from '@/data/guias'
 import GuiaHero from '@/components/GuiaHero'
+import { clinicasMasDe } from '@/lib/datos'
 
 const BASE = 'https://www.vetespana.es'
 
@@ -57,6 +58,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const guia = getGuia(slug)
   if (!guia) notFound()
+  const masDe = await clinicasMasDe()
 
   const otras = GUIAS.filter((g) => g.slug !== guia.slug).slice(0, 3)
 
@@ -148,7 +150,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
       <div className="my-10 bg-teal-50/60 rounded-2xl border border-teal-100 p-6 text-center">
         <h2 className="text-xl font-bold text-gray-900 mb-2">Encuentra tu veterinario en VetEspaña</h2>
         <p className="text-gray-600 mb-4">
-          Más de 2.400 clínicas en toda España, con horarios, especialidades y urgencias 24h.
+          Más de {masDe} clínicas en toda España, con horarios, especialidades y urgencias 24h.
         </p>
         <div className="flex flex-wrap gap-3 justify-center">
           <Link href="/clinicas" className="inline-block bg-teal-700 text-white font-semibold px-6 py-3 rounded-full hover:bg-teal-800 transition-colors">
