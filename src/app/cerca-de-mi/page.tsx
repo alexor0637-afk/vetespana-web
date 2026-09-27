@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import NearbyClient from '@/components/NearbyClient'
 
 export const metadata: Metadata = {
-  title: 'Veterinario cerca de mí — Clínicas veterinarias cercanas | VetEspaña',
+  title: 'Veterinario cerca de mí — Clínicas veterinarias cercanas',
   description:
     'Encuentra el veterinario más cercano a tu ubicación. Clínicas veterinarias cerca de ti en toda España, ordenadas por distancia: horarios, teléfono, urgencias 24h y cómo llegar.',
   alternates: { canonical: 'https://www.vetespana.es/cerca-de-mi' },

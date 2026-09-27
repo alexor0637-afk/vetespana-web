@@ -62,9 +62,17 @@ export default function ClinicGrid({ initial, total, filtro }: Props) {
         ))}
       </div>
 
+      {/* Se cargan más solas al acercarse aquí; el botón sirve con teclado o si falla la carga automática */}
       {items.length < total && (
-        <div ref={sentinel} className="flex justify-center py-8 text-sm text-gray-400">
-          Cargando más clínicas… ({items.length} de {total})
+        <div ref={sentinel} className="flex justify-center py-8">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loading}
+            className="text-sm font-medium text-teal-700 hover:text-teal-800 border border-teal-200 hover:border-teal-300 bg-white rounded-full px-5 py-2 transition-colors disabled:opacity-60"
+          >
+            {loading ? 'Cargando…' : `Ver más clínicas (${items.length} de ${total})`}
+          </button>
         </div>
       )}
     </>

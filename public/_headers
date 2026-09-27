@@ -1,0 +1,19 @@
+# Cabeceras que aplica Cloudflare a la web estática (se copia a out/_headers).
+
+# Imágenes generadas sin extensión: sin esto, WhatsApp/Facebook podrían no mostrarlas
+/opengraph-image
+  Content-Type: image/png
+/apple-icon
+  Content-Type: image/png
+
+# Fotos: su nombre no cambia nunca (id de la foto) → el navegador las guarda 30 días
+/fotos/*
+  Cache-Control: public, max-age=2592000
+
+# Archivos de Next con hash en el nombre: nunca cambian
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
