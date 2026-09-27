@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import { notFound } from 'next/navigation'
 import { searchClinics } from '@/lib/datos'
 import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDADES, COMUNIDAD_EMOJI } from '@/types/clinic'

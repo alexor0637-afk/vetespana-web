@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import type { Clinic } from '@/types/clinic'
 import { CIUDAD_DISPLAY } from '@/types/clinic'
 import { filtrarClinicas, paramsDesdeUrl } from '@/lib/search'
@@ -19,7 +19,6 @@ const LOTE = 24
  * filtra en el navegador el índice /datos/clinicas.json.
  */
 export default function ClinicasExplorer({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const sp = useSearchParams()
   const params = paramsDesdeUrl(sp)
   const clave = sp.toString()
@@ -36,7 +35,7 @@ export default function ClinicasExplorer({ children }: { children: React.ReactNo
 
   useEffect(() => {
     if (destino) {
-      router.replace(destino)
+      window.location.replace(destino)
       return
     }
     if (!hayFiltros) return

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import {
   ESPECIALIDADES,
   ESPECIALIDAD_EMOJI,
@@ -20,7 +20,6 @@ function comunidadDeCiudad(ciudad: string): string {
 }
 
 export default function FilterBar() {
-  const router = useRouter()
   const searchParams = useSearchParams()
 
   const ciudad = searchParams.get('ciudad') ?? ''
@@ -35,8 +34,11 @@ export default function FilterBar() {
 
   const hayFiltrosActivos = ciudad || comunidad || especialidad || urgencias
 
+  // Solo cambia la URL: useSearchParams se entera y el listado se filtra en el
+  // navegador al instante (web estática: no hay servidor al que pedir nada).
   function push(params: URLSearchParams) {
-    router.push(`/clinicas?${params.toString()}`)
+    const qs = params.toString()
+    window.history.pushState(null, '', qs ? `/clinicas?${qs}` : '/clinicas')
   }
 
   // Al elegir comunidad: fija comunidad y resetea la ciudad

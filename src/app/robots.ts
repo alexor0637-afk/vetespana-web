@@ -8,8 +8,6 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      // Buzón de reseñas/altas (solo POST): no hay nada que indexar
-      disallow: '/api/',
     },
     sitemap: 'https://www.vetespana.es/sitemap.xml',
   }

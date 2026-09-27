@@ -1,27 +1,17 @@
-// Publicación en Cloudflare: la web estática (out/) + el buzón de /api/* (worker/index.ts).
+// Publicación de la web en Cloudflare: SOLO archivos estáticos (out/), sin código.
+// Las peticiones a archivos estáticos son gratis e ilimitadas. El buzón de reseñas y
+// altas es otro Worker (worker/wrangler.jsonc).
 // Se despliega desde el servidor de casa con `npx wrangler deploy` (ver ~/homelab/vetespana-web).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vetespana-web",
-  "main": "worker/index.ts",
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./out",
-    "binding": "ASSETS",
     // /clinicas/x → out/clinicas/x.html ; lo que no existe → out/404.html
     "html_handling": "auto-trailing-slash",
-    "not_found_handling": "404-page",
-    // Solo /api/* ejecuta el Worker; el resto se sirve como archivo estático (gratis e ilimitado)
-    "run_worker_first": ["/api/*"]
+    "not_found_handling": "404-page"
   },
-  "d1_databases": [
-    {
-      "binding": "BUZON",
-      "database_name": "vetespana-buzon",
-      // Se rellena al crear la base (el id no es secreto)
-      "database_id": "00000000-0000-0000-0000-000000000000"
-    }
-  ],
   "workers_dev": true,
   "preview_urls": false
 }

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import { PawPrint } from 'lucide-react'
 import { COMUNIDADES, CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'

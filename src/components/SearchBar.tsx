@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
 import CitySelect from './CitySelect'
 import { ciudadSlug } from '@/lib/ciudad-slug'
@@ -12,7 +12,6 @@ interface Props {
 }
 
 export default function SearchBar({ initialCiudad = '', initialQuery = '' }: Props) {
-  const router = useRouter()
   const [ciudad, setCiudad] = useState(initialCiudad)
   const [query, setQuery] = useState(initialQuery)
 
@@ -20,13 +19,16 @@ export default function SearchBar({ initialCiudad = '', initialQuery = '' }: Pro
     e.preventDefault()
     // Solo ciudad (sin texto libre) → URL limpia de ciudad directamente.
     if (ciudad && !query) {
-      router.push(`/veterinarios/${ciudadSlug(ciudad)}`)
+      window.location.assign(`/veterinarios/${ciudadSlug(ciudad)}`)
       return
     }
     const params = new URLSearchParams()
     if (ciudad) params.set('ciudad', ciudad)
     if (query) params.set('q', query)
-    router.push(`/clinicas?${params.toString()}`)
+    const url = params.toString() ? `/clinicas?${params.toString()}` : '/clinicas'
+    // Ya en /clinicas: cambia solo la URL y el listado se filtra al instante
+    if (window.location.pathname === '/clinicas') window.history.pushState(null, '', url)
+    else window.location.assign(url)
   }
 
   return (

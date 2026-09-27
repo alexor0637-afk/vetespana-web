@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDAD_EMOJI } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
 
-// Página estática (no lee Airtable): índice navegable de todas las ciudades.
+// Página estática (no lee la base): índice navegable de todas las ciudades.
 // Reparte enlaces internos a las 368 páginas de ciudad → mejora rastreo e indexación.
 export const metadata: Metadata = {
   title: 'Veterinarios por ciudad — directorio completo',

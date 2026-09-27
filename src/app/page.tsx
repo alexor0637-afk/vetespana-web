@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import { clinicasMasDe, getFeaturedClinics } from '@/lib/datos'
 import ClinicCard from '@/components/ClinicCard'
 import SearchBar from '@/components/SearchBar'

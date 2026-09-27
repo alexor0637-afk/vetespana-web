@@ -18,18 +18,20 @@ for (const f of ['index.html', '404.html', 'sitemap.xml', 'robots.txt', 'datos/c
   if (!existe(f)) errores.push(`falta ${f}`)
 }
 
-let archivos = 0, grandes = []
+let archivos = 0, fragmentos = 0, grandes = []
 ;(function recorrer(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name)
     if (e.isDirectory()) recorrer(p)
     else {
       archivos++
+      if (e.name.startsWith('__next.')) fragmentos++
       if (fs.statSync(p).size > MAX_BYTES) grandes.push(path.relative(OUT, p))
     }
   }
 })(OUT)
 if (archivos > MAX_ARCHIVOS) errores.push(`${archivos} archivos: pasa del límite de ${MAX_ARCHIVOS} de Cloudflare`)
+if (fragmentos) errores.push(`quedan ${fragmentos} fragmentos __next.*.txt: falta pasar scripts/limpiar-salida.mjs`)
 if (grandes.length) errores.push(`archivos de más de 25 MiB: ${grandes.join(', ')}`)
 
 let fichas = 0, indice = 0, urls = 0

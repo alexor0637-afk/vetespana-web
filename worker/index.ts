@@ -1,7 +1,8 @@
-// Buzón de vetespana en Cloudflare. La web son archivos estáticos (out/); esto es
-// lo ÚNICO que se ejecuta, y solo para /api/*:
-//   POST /api/reviews  reseñas del formulario de cada ficha (components/ReviewForm.tsx)
-//   POST /api/tally    altas de clínicas: webhook del formulario de Tally
+// Buzón de vetespana en Cloudflare (Worker "vetespana-buzon", buzon.vetespana.es).
+// La web son archivos estáticos (otro Worker, sin código); esto es lo ÚNICO que se
+// ejecuta, y solo cuando alguien envía algo:
+//   POST /resenas  reseñas del formulario de cada ficha (components/ReviewForm.tsx)
+//   POST /tally    altas de clínicas: webhook del formulario de Tally
 // Todo se guarda tal cual en D1 (tabla buzon, ver buzon.sql). El servidor de casa lo
 // recoge cada noche (scripts/recoger-buzon.mjs) y lo pasa a Postgres PENDIENTE de
 // aprobar en NocoDB: aquí nada se publica directamente.
@@ -9,24 +10,25 @@
 interface D1Database {
   prepare(sql: string): { bind(...valores: unknown[]): { run(): Promise<unknown> } }
 }
-interface Fetcher {
-  fetch(request: Request): Promise<Response>
-}
 interface Env {
-  ASSETS: Fetcher
   BUZON: D1Database
 }
 
 const MAX_BYTES = 64 * 1024
 const FORMULARIO_TALLY = 'PdGVPe'
+// La web desde la que se aceptan reseñas (el navegador envía la cabecera Origin)
+const ORIGENES = ['https://www.vetespana.es', 'https://vetespana.es']
 
 const buzon = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url)
-    if (pathname === '/api/reviews') return recibirResena(request, env)
-    if (pathname === '/api/tally') return recibirTally(request, env)
-    if (pathname.startsWith('/api/')) return json({ error: 'No encontrado' }, 404)
-    return env.ASSETS.fetch(request)
+    const origen = request.headers.get('origin') ?? ''
+    if (pathname === '/resenas') {
+      if (request.method === 'OPTIONS') return preflight(origen)
+      return conCors(await recibirResena(request, env, origen), origen)
+    }
+    if (pathname === '/tally') return recibirTally(request, env)
+    return json({ error: 'No encontrado' }, 404)
   },
 }
 
@@ -37,6 +39,28 @@ function json(cuerpo: unknown, status = 200): Response {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
   })
+}
+
+function preflight(origen: string): Response {
+  if (!ORIGENES.includes(origen)) return new Response(null, { status: 403 })
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'access-control-allow-origin': origen,
+      'access-control-allow-methods': 'POST',
+      'access-control-allow-headers': 'content-type',
+      'access-control-max-age': '86400',
+      vary: 'Origin',
+    },
+  })
+}
+
+function conCors(res: Response, origen: string): Response {
+  if (!ORIGENES.includes(origen)) return res
+  const r = new Response(res.body, res)
+  r.headers.set('access-control-allow-origin', origen)
+  r.headers.set('vary', 'Origin')
+  return r
 }
 
 async function leerJson(request: Request): Promise<Record<string, unknown> | null> {
@@ -55,8 +79,9 @@ async function guardar(env: Env, tipo: 'resena' | 'alta', datos: unknown): Promi
   await env.BUZON.prepare('INSERT INTO buzon (tipo, datos) VALUES (?, ?)').bind(tipo, JSON.stringify(datos)).run()
 }
 
-async function recibirResena(request: Request, env: Env): Promise<Response> {
+async function recibirResena(request: Request, env: Env, origen: string): Promise<Response> {
   if (request.method !== 'POST') return json({ error: 'Método no permitido' }, 405)
+  if (!ORIGENES.includes(origen)) return json({ error: 'Origen no permitido' }, 403)
   if (!(request.headers.get('content-type') ?? '').includes('application/json')) return json({ error: 'Petición no válida' }, 400)
   const c = await leerJson(request)
   if (!c) return json({ error: 'Petición no válida' }, 400)

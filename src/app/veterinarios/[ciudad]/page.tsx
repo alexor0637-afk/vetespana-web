@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import { notFound } from 'next/navigation'
 import { searchClinics } from '@/lib/datos'
 import { CIUDAD_DISPLAY } from '@/types/clinic'

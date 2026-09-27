@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import { useState } from 'react'
 import { CIUDADES_POR_COMUNIDAD, COMUNIDAD_EMOJI } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'

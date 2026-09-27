@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import { notFound } from 'next/navigation'
 import {
   MapPin, Phone, Globe, Mail, Clock, ShieldCheck,

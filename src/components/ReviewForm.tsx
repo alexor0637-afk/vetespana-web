@@ -9,9 +9,11 @@ interface Props {
   clinicNombre: string
 }
 
-// Envía la reseña al buzón de Cloudflare (/api/reviews, worker/index.ts). El
-// servidor de casa la recoge cada noche y la guarda en Postgres pendiente de
-// aprobar (en NocoDB); se publica en la siguiente generación de la web.
+// Buzón de Cloudflare (worker/index.ts). El servidor de casa recoge las reseñas cada
+// noche y las guarda en Postgres pendientes de aprobar (en NocoDB); se publican en
+// la siguiente generación de la web.
+const URL_BUZON = process.env.NEXT_PUBLIC_URL_BUZON ?? 'https://buzon.vetespana.es'
+
 export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props) {
   const [nombre, setNombre] = useState('')
   const [puntuacion, setPuntuacion] = useState(0)
@@ -26,7 +28,7 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
 
     setEstado('loading')
     try {
-      const res = await fetch('/api/reviews', {
+      const res = await fetch(`${URL_BUZON}/resenas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clinicaId: clinicId, slug: clinicSlug, nombreUsuario: nombre, puntuacion, comentario, website }),

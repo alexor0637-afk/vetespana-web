@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import Image from 'next/image'
 import { MapPin, Phone, Clock, Star, ShieldCheck, Zap, Navigation } from 'lucide-react'
 import type { Clinic } from '@/types/clinic'

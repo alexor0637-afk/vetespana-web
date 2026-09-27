@@ -1,0 +1,20 @@
+// Buzón de reseñas y altas (worker/index.ts) + su base D1. Va aparte de la web para
+// que la web sea solo archivos estáticos: así ni los robots ni las páginas que no
+// existen gastan peticiones del plan gratuito.
+//   npx wrangler deploy --config worker/wrangler.jsonc
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "vetespana-buzon",
+  "main": "index.ts",
+  "compatibility_date": "2026-09-01",
+  "d1_databases": [
+    {
+      "binding": "BUZON",
+      "database_name": "vetespana-buzon",
+      // Lo pone publicar-contenedor.sh desde .env (D1_DATABASE_ID)
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "workers_dev": true,
+  "preview_urls": false
+}

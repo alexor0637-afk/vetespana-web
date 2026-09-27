@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import { Menu, X, Navigation } from 'lucide-react'
 
 // Menú hamburguesa para móvil: da acceso a todas las secciones (en escritorio

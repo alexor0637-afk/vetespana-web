@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import Link from '@/components/Enlace'
 import Image from 'next/image'
 import { GUIAS } from '@/data/guias'
 import { clinicasMasDe } from '@/lib/datos'
