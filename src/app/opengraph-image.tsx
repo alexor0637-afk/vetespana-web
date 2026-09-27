@@ -55,7 +55,7 @@ export default async function OpengraphImage() {
             borderRadius: 999,
           }}
         >
-          +{masDe} clínicas · fotos, horarios, especialidades y urgencias 24h
+          {`+${masDe} clínicas · fotos, horarios, especialidades y urgencias 24h`}
         </div>
       </div>
     ),
