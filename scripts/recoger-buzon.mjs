@@ -8,18 +8,23 @@
 // Se ejecuta en cada publicación (contenedor de ~/homelab/vetespana-web):
 //   node scripts/recoger-buzon.mjs
 // Variables: DATABASE_URL_ESCRITURA, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, D1_DATABASE_ID, CARPETA_FOTOS
+// Prueba sin Cloudflare: BUZON_JSON=envios.json (filas {id, tipo, datos, recibido}); no borra nada.
 import fs from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
 
-const { CLOUDFLARE_ACCOUNT_ID: CUENTA, CLOUDFLARE_API_TOKEN: TOKEN, D1_DATABASE_ID: BD } = process.env
+const { CLOUDFLARE_ACCOUNT_ID: CUENTA, CLOUDFLARE_API_TOKEN: TOKEN, D1_DATABASE_ID: BD, BUZON_JSON } = process.env
 const CARPETA_FOTOS = process.env.CARPETA_FOTOS ?? '/fotos'
-if (!CUENTA || !TOKEN || !BD) {
+if (!BUZON_JSON && (!CUENTA || !TOKEN || !BD)) {
   console.log('Buzón: faltan las credenciales de Cloudflare; no se recoge nada')
   process.exit(0)
 }
 
 async function d1(sql, params = []) {
+  if (BUZON_JSON) {
+    if (sql.startsWith('SELECT')) return JSON.parse(fs.readFileSync(BUZON_JSON, 'utf8'))
+    return [] // en prueba no se borra nada
+  }
   const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CUENTA}/d1/database/${BD}/query`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
