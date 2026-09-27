@@ -6,6 +6,8 @@ import { clinicasMasDe } from '@/lib/datos'
 export const alt = 'VetEspaña — Encuentra tu veterinario de confianza en España'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
+// Web estática: se genera una vez en el build como PNG
+export const dynamic = 'force-static'
 
 export default async function OpengraphImage() {
   const masDe = await clinicasMasDe()
