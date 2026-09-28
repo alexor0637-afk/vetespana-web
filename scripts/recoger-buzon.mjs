@@ -36,10 +36,19 @@ async function d1(sql, params = []) {
       if (!Number.isInteger(p)) throw new Error(`parámetro no entero: ${p}`)
       return s.replace('?', String(p))
     }, sql)
-    const salida = execFileSync(
-      'npx', ['wrangler', 'd1', 'execute', 'vetespana-buzon', '--remote', '--json', '--config', 'worker/wrangler.jsonc', '--command', final],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
-    return JSON.parse(salida)[0].results
+    // Justo cuando wrangler renueva la sesión (cada hora) la primera consulta puede fallar
+    // (error 7403): se reintenta un par de veces antes de darlo por fallido.
+    for (let intento = 1; ; intento++) {
+      try {
+        const salida = execFileSync(
+          'npx', ['wrangler', 'd1', 'execute', 'vetespana-buzon', '--remote', '--json', '--config', 'worker/wrangler.jsonc', '--command', final],
+          { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
+        return JSON.parse(salida)[0].results
+      } catch (e) {
+        if (intento >= 3) throw new Error(`D1 no responde: ${motivoWrangler(e)}`)
+        await new Promise((r) => setTimeout(r, 5000 * intento))
+      }
+    }
   }
   const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CUENTA}/d1/database/${BD}/query`, {
     method: 'POST',
@@ -49,6 +58,16 @@ async function d1(sql, params = []) {
   const json = await res.json()
   if (!json.success) throw new Error(`D1: ${JSON.stringify(json.errors)}`)
   return json.result[0].results
+}
+
+// El motivo de un fallo de wrangler en una línea (en vez de todo el volcado)
+function motivoWrangler(e) {
+  try {
+    const { error } = JSON.parse(e.stdout)
+    return [error.text, ...(error.notes ?? []).map((n) => n.text)].join(' ')
+  } catch {
+    return String(e.stderr || e.message).split('\n').find((l) => l.trim()) ?? 'error desconocido'
+  }
 }
 
 const texto = (v) => (v === null || v === undefined || String(v).trim() === '' ? null : String(v).trim())
@@ -164,7 +183,13 @@ function resumirCambios(actual, cambios, foto) {
 }
 
 // ── Recogida ─────────────────────────────────────────────────────────────────
-const filas = await d1('SELECT id, tipo, datos, recibido FROM buzon ORDER BY id LIMIT 200')
+let filas
+try {
+  filas = await d1('SELECT id, tipo, datos, recibido FROM buzon ORDER BY id LIMIT 200')
+} catch (e) {
+  console.error(`Buzón: no se ha podido leer (${e.message}); se reintentará en la próxima vuelta`)
+  process.exit(1)
+}
 if (!filas.length) {
   console.log('Buzón: vacío')
   process.exit(0)
