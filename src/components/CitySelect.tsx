@@ -19,13 +19,25 @@ interface Props {
   value: string
   onChange: (value: string) => void
   placeholder?: string
+  /** id de la lista (si hay más de un selector en la página) */
+  id?: string
+  /** Texto de la primera opción, la que deja la ciudad vacía */
+  opcionVacia?: string
+  etiqueta?: string
 }
 
 /**
  * Selector de ciudad con autocompletado: en vez de un desplegable de ~290
  * ciudades, el usuario escribe parte del nombre ("madr") y aparece la opción.
  */
-export default function CitySelect({ value, onChange, placeholder = 'Todas las ciudades' }: Props) {
+export default function CitySelect({
+  value,
+  onChange,
+  placeholder = 'Todas las ciudades',
+  id = 'lista-ciudades',
+  opcionVacia = 'Todas las ciudades',
+  etiqueta = 'Buscar ciudad',
+}: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
@@ -83,10 +95,10 @@ export default function CitySelect({ value, onChange, placeholder = 'Todas las c
       <input
         type="text"
         role="combobox"
-        aria-controls="lista-ciudades"
+        aria-controls={id}
         aria-expanded={open}
         aria-autocomplete="list"
-        aria-label="Buscar ciudad"
+        aria-label={etiqueta}
         value={open ? query : selectedDisplay}
         placeholder={placeholder}
         onChange={(e) => { buscar(e.target.value); setOpen(true) }}
@@ -109,7 +121,7 @@ export default function CitySelect({ value, onChange, placeholder = 'Todas las c
 
       {open && (
         <ul
-          id="lista-ciudades"
+          id={id}
           role="listbox"
           ref={listRef}
           className="absolute z-30 mt-1 w-full max-h-72 overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg py-1 text-sm"
@@ -120,7 +132,7 @@ export default function CitySelect({ value, onChange, placeholder = 'Todas las c
             onMouseDown={(e) => { e.preventDefault(); select('') }}
             className="px-3 py-2 cursor-pointer text-gray-500 hover:bg-gray-50"
           >
-            Todas las ciudades
+            {opcionVacia}
           </li>
           {results.map((c, i) => (
             <li

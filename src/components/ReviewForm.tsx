@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Star } from 'lucide-react'
+import { URL_BUZON } from '@/lib/formulario-clinica'
 
 interface Props {
   clinicId: string
@@ -9,10 +10,9 @@ interface Props {
   clinicNombre: string
 }
 
-// Buzón de Cloudflare (worker/index.ts). El servidor de casa recoge las reseñas cada
-// noche y las guarda en Postgres pendientes de aprobar (en NocoDB); se publican en
-// la siguiente generación de la web.
-const URL_BUZON = process.env.NEXT_PUBLIC_URL_BUZON ?? 'https://buzon.vetespana.es'
+// Las reseñas van al buzón de Cloudflare (worker/index.ts). El servidor de casa las
+// recoge cada 10 minutos y las guarda en Postgres pendientes de aprobar (en NocoDB);
+// en cuanto se aprueban, salen en la web en unos minutos.
 
 export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props) {
   const [nombre, setNombre] = useState('')

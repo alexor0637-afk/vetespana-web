@@ -9,6 +9,7 @@ import {
 import { getAllClinicSlugs, getClinicBySlug, getReviewsByClinic } from '@/lib/datos'
 import { GUIAS } from '@/data/guias'
 import ReviewForm from '@/components/ReviewForm'
+import SolicitarCambios from '@/components/SolicitarCambios'
 import BadgeBox from '@/components/BadgeBox'
 
 // Web estática: se genera una ficha por clínica en el build (datos de Postgres).
@@ -451,6 +452,26 @@ export default async function ClinicaPage({ params }: Props) {
             >
               <MapPin size={14} className="text-teal-500" /> Ver en Google Maps
             </a>
+
+            {/* Para el equipo de la clínica: pedir cambios (se revisan antes de publicarse) */}
+            <SolicitarCambios
+              clinica={{
+                id: clinic.id,
+                slug: clinic.slug,
+                nombre: clinic.nombre,
+                ciudad: clinic.ciudad,
+                direccion: clinic.direccion,
+                telefono: clinic.telefono,
+                whatsapp: clinic.whatsapp,
+                email: clinic.email,
+                web: clinic.web,
+                redesSociales: clinic.redesSociales,
+                especialidades: clinic.especialidades,
+                horario: clinic.horario,
+                urgencias24h: clinic.urgencias24h,
+                descripcion: clinic.descripcion,
+              }}
+            />
           </div>
         </div>
       </div>

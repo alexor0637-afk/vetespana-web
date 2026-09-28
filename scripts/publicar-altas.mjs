@@ -1,11 +1,13 @@
 // Convierte en clínicas las altas que el dueño ha APROBADO en NocoDB
 // (tabla altas, estado = aprobada). Si alguna no se puede publicar (ciudad
 // desconocida, sin nombre…) se deja como está y se explica en su columna `nota`.
+// Las coordenadas (para «Cerca de mí») se sacan de la dirección con OpenStreetMap.
 //
-// Se ejecuta en cada publicación (contenedor de ~/homelab/vetespana-web):
+// Se ejecuta cada 10 minutos (contenedor de ~/homelab/vetespana-web):
 //   node scripts/publicar-altas.mjs
 // Variables: DATABASE_URL_ESCRITURA
 import pg from 'pg'
+import { coordenadasDe } from './geocodificar.mjs'
 
 // Idéntica a toSlug()/ciudadSlug() de la web
 const slugify = (s) =>
@@ -42,14 +44,18 @@ for (const a of altas) {
     for (let n = 2; !(await libre(slug)); n++) slug = `${base}-${ciudad.slug}-${n}`
   }
 
+  // Antes de abrir la transacción (es una consulta a internet)
+  const punto = texto(a.direccion) ? await coordenadasDe(db, texto(a.direccion), ciudad.id) : null
+
   try {
     await db.query('BEGIN')
     const { rows: [clinica] } = await db.query(
       `INSERT INTO clinicas (nombre, slug, ciudad_id, direccion, telefono, whatsapp, email, web, redes_sociales,
-                             horario, descripcion, urgencias_24h)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+                             horario, descripcion, urgencias_24h, lat, lng)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
       [nombre, slug, ciudad.id, texto(a.direccion), texto(a.telefono), texto(a.whatsapp), texto(a.email),
-       texto(a.web), texto(a.redes_sociales), texto(a.horario), texto(a.descripcion), a.urgencias_24h === true])
+       texto(a.web), texto(a.redes_sociales), texto(a.horario), texto(a.descripcion), a.urgencias_24h === true,
+       punto?.lat ?? null, punto?.lng ?? null])
     const nombresEsp = (a.especialidades ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
     for (const e of especialidades.filter((e) => nombresEsp.includes(e.nombre.toLowerCase()))) {
       await db.query('INSERT INTO clinica_especialidades (clinica_id, especialidad_id) VALUES ($1, $2)', [clinica.id, e.id])
@@ -59,7 +65,8 @@ for (const a of altas) {
         `INSERT INTO fotos (clinica_id, tipo, orden, archivo, origen) VALUES ($1, 'portada', 0, $2, 'subida')`,
         [clinica.id, a.foto_archivo])
     }
-    await db.query(`UPDATE altas SET estado = 'publicada', clinica_id = $2, nota = NULL WHERE id = $1`, [a.id, clinica.id])
+    await db.query(`UPDATE altas SET estado = 'publicada', clinica_id = $2, nota = $3 WHERE id = $1`,
+      [a.id, clinica.id, punto ? null : 'Publicada, pero sin coordenadas (no sale en «Cerca de mí»): ponlas a mano en la clínica (lat y lng).'])
     await db.query('COMMIT')
     publicadas++
     console.log(`Altas: publicada "${nombre}" → /clinicas/${slug}`)

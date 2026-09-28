@@ -1,52 +1,39 @@
 import type { Metadata } from 'next'
-import { ArrowRight } from 'lucide-react'
+import AltaClinica from '@/components/AltaClinica'
 
 export const metadata: Metadata = {
   title: 'Añade tu clínica veterinaria',
   description:
-    'Registra tu clínica veterinaria en VetEspaña gratis. Llega a miles de dueños de mascotas que buscan veterinario en tu ciudad.',
+    'Registra tu clínica veterinaria en VetEspaña gratis, o actualiza sus datos si ya aparece. Llega a los dueños de mascotas que buscan veterinario en tu ciudad.',
+  alternates: { canonical: 'https://www.vetespana.es/alta-clinica' },
 }
-
-const TALLY_URL = 'https://tally.so/r/PdGVPe'
 
 export default function AltaClinicaPage() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-14">
-      <div className="text-center mb-10">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-          Añade tu clínica veterinaria gratis
-        </h1>
-        <p className="text-gray-500 text-lg">
-          Llega a miles de dueños de mascotas que buscan veterinario en tu ciudad cada mes.
+    <div className="mx-auto max-w-3xl px-4 py-14">
+      <div className="mb-10 text-center">
+        <h1 className="mb-4 text-3xl font-bold text-gray-900 md:text-4xl">Añade tu clínica veterinaria gratis</h1>
+        <p className="text-lg text-gray-500">
+          Llega a los dueños de mascotas que buscan veterinario en tu ciudad. Si tu clínica ya aparece, aquí puedes actualizar sus datos.
         </p>
       </div>
 
-      {/* Botón alta */}
-      <div className="flex justify-center mb-10">
-        <a
-          href={TALLY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-8 py-3 rounded-full transition-colors text-lg"
-        >
-          Añadir mi clínica gratis <ArrowRight size={16} className="inline" />
-        </a>
-      </div>
+      <AltaClinica />
 
       {/* Cómo funciona */}
-      <div className="bg-gray-50 rounded-2xl p-6">
-        <h2 className="font-bold text-gray-900 mb-4 text-center">¿Cómo funciona?</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+      <div className="mt-10 rounded-2xl bg-gray-50 p-6">
+        <h2 className="mb-4 text-center font-bold text-gray-900">¿Cómo funciona?</h2>
+        <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
           {[
-            { n: '1', title: 'Rellena el formulario', desc: 'Tarda menos de 5 minutos. Solo lo básico.' },
-            { n: '2', title: 'Revisamos tu clínica', desc: 'Verificamos que todo esté correcto en 24-48h.' },
-            { n: '3', title: '¡Ya estás online!', desc: 'Miles de dueños de mascotas podrán encontrarte.' },
+            { n: '1', title: 'Busca o rellena', desc: 'Busca tu clínica para actualizarla o, si no está, añádela en 5 minutos.' },
+            { n: '2', title: 'La revisamos', desc: 'Comprobamos los datos a mano, normalmente en uno o dos días.' },
+            { n: '3', title: '¡Ya estás online!', desc: 'En cuanto la aprobamos, sale en la web en unos minutos.' },
           ].map((step) => (
             <div key={step.n}>
-              <div className="w-9 h-9 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold mx-auto mb-2">
+              <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 font-bold text-teal-700">
                 {step.n}
               </div>
-              <div className="font-semibold text-gray-800 text-sm mb-1">{step.title}</div>
+              <div className="mb-1 text-sm font-semibold text-gray-800">{step.title}</div>
               <div className="text-xs text-gray-500">{step.desc}</div>
             </div>
           ))}

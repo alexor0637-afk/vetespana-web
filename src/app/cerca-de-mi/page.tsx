@@ -41,6 +41,13 @@ export default function CercaDeMiPage() {
           (urgencias 24h, animales exóticos, cirugía, dermatología y más) desde el buscador de
           clínicas.
         </p>
+        <p className="text-xs text-gray-400">
+          Parte de las ubicaciones: ©{' '}
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">
+            colaboradores de OpenStreetMap
+          </a>
+          .
+        </p>
       </div>
     </div>
   )

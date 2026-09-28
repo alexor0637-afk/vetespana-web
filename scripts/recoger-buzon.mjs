@@ -1,11 +1,14 @@
 // Recoge el buzón de Cloudflare (base D1 "vetespana-buzon", ver worker/) y lo pasa
 // a Postgres, SIEMPRE pendiente de revisar en NocoDB:
-//   reseñas         → tabla resenas (aprobada = false)
-//   altas de Tally  → tabla altas (estado = pendiente); la foto se descarga ya a
-//                     data/fotos/ porque los enlaces de Tally pueden caducar
-// Cada fila se borra de D1 solo cuando ya está guardada en Postgres.
+//   reseñas              → tabla resenas (aprobada = false)
+//   altas                → tabla altas (estado = pendiente): del formulario de la web y,
+//                          las antiguas, de Tally
+//   cambios de un dueño  → tabla ediciones (estado = pendiente), con el resumen
+//                          «campo: antes → ahora» comparado con la clínica actual
+// Las fotos (tabla archivos de D1, o enlaces de Tally) se guardan ya en data/fotos/.
+// Cada envío se borra de D1 solo cuando ya está guardado en Postgres.
 //
-// Se ejecuta en cada publicación (contenedor de ~/homelab/vetespana-web):
+// Se ejecuta cada 10 minutos (contenedor de ~/homelab/vetespana-web):
 //   node scripts/recoger-buzon.mjs
 // Variables: DATABASE_URL_ESCRITURA, CLOUDFLARE_ACCOUNT_ID, D1_DATABASE_ID, CARPETA_FOTOS y,
 // opcional, CLOUDFLARE_API_TOKEN (si no está, se usa la sesión de `wrangler login`).
@@ -24,8 +27,8 @@ if (!BUZON_JSON && (!CUENTA || !BD)) {
 
 async function d1(sql, params = []) {
   if (BUZON_JSON) {
-    if (sql.startsWith('SELECT')) return JSON.parse(fs.readFileSync(BUZON_JSON, 'utf8'))
-    return [] // en prueba no se borra nada
+    if (sql.startsWith('SELECT id, tipo')) return JSON.parse(fs.readFileSync(BUZON_JSON, 'utf8'))
+    return [] // en prueba no hay fotos ni se borra nada
   }
   if (!TOKEN) {
     // Sesión de wrangler: consulta con la CLI (los únicos parámetros son ids enteros)
@@ -35,7 +38,7 @@ async function d1(sql, params = []) {
     }, sql)
     const salida = execFileSync(
       'npx', ['wrangler', 'd1', 'execute', 'vetespana-buzon', '--remote', '--json', '--config', 'worker/wrangler.jsonc', '--command', final],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
     return JSON.parse(salida)[0].results
   }
   const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CUENTA}/d1/database/${BD}/query`, {
@@ -48,8 +51,34 @@ async function d1(sql, params = []) {
   return json.result[0].results
 }
 
-// ── Campos del formulario de Tally (PdGVPe), por su etiqueta ─────────────────
-const CAMPOS = [
+const texto = (v) => (v === null || v === undefined || String(v).trim() === '' ? null : String(v).trim())
+
+// ── Fotos ────────────────────────────────────────────────────────────────────
+const EXTENSIONES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
+
+// Foto subida con el formulario de la web (guardada en la tabla archivos de D1)
+async function guardarFotoDelBuzon(filaId, prefijo) {
+  const [archivo] = await d1('SELECT tipo, datos FROM archivos WHERE buzon_id = ? ORDER BY id LIMIT 1', [filaId])
+  if (!archivo) return null
+  const nombre = `${prefijo}.${EXTENSIONES[archivo.tipo] ?? 'jpg'}`
+  fs.writeFileSync(path.join(CARPETA_FOTOS, nombre), Buffer.from(archivo.datos, 'base64'))
+  return nombre
+}
+
+// Foto de un alta de Tally (enlace que puede caducar: se descarga ya)
+async function descargarFotoTally(archivos, prefijo) {
+  const f = Array.isArray(archivos) ? archivos[0] : null
+  if (!f?.url) return null
+  const ext = EXTENSIONES[f.mimeType] ?? (path.extname(f.name ?? '').slice(1).toLowerCase() || 'jpg')
+  const nombre = `${prefijo}.${ext}`
+  const res = await fetch(f.url)
+  if (!res.ok) throw new Error(`foto ${res.status}`)
+  fs.writeFileSync(path.join(CARPETA_FOTOS, nombre), Buffer.from(await res.arrayBuffer()))
+  return nombre
+}
+
+// ── Altas del formulario antiguo de Tally (PdGVPe), campos por su etiqueta ───
+const CAMPOS_TALLY = [
   ['nombre', /^nombre/i],
   ['telefono', /^tel[eé]fono/i],
   ['email', /e-?mail|correo/i],
@@ -65,7 +94,7 @@ const CAMPOS = [
   ['redes', /redes/i],
 ]
 
-function valor(campo) {
+function valorTally(campo) {
   const v = campo.value
   if (v === null || v === undefined || v === '') return null
   if (Array.isArray(v)) {
@@ -81,26 +110,61 @@ function valor(campo) {
 function extraerTally(envio) {
   const r = {}
   for (const campo of envio.data?.fields ?? []) {
-    const [clave] = CAMPOS.find(([, re]) => re.test(campo.label ?? '')) ?? []
-    if (clave && r[clave] === undefined) r[clave] = valor(campo)
+    const [clave] = CAMPOS_TALLY.find(([, re]) => re.test(campo.label ?? '')) ?? []
+    if (clave && r[clave] === undefined) r[clave] = valorTally(campo)
   }
   return r
 }
 
-async function descargarFoto(archivos, prefijo) {
-  const f = Array.isArray(archivos) ? archivos[0] : null
-  if (!f?.url) return null
-  const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[f.mimeType]
-    ?? (path.extname(f.name ?? '').slice(1).toLowerCase() || 'jpg')
-  const archivo = `${prefijo}.${ext}`
-  const res = await fetch(f.url)
-  if (!res.ok) throw new Error(`foto ${res.status}`)
-  fs.writeFileSync(path.join(CARPETA_FOTOS, archivo), Buffer.from(await res.arrayBuffer()))
-  return archivo
+// ── Resumen de los cambios que pide un dueño («campo: antes → ahora») ────────
+const COLUMNAS = {
+  nombre: ['nombre', 'Nombre'],
+  direccion: ['direccion', 'Dirección'],
+  telefono: ['telefono', 'Teléfono'],
+  whatsapp: ['whatsapp', 'WhatsApp'],
+  email: ['email', 'Email'],
+  web: ['web', 'Web'],
+  redes: ['redes_sociales', 'Redes sociales'],
+  horario: ['horario', 'Horario'],
+  descripcion: ['descripcion', 'Descripción'],
+}
+
+function resumirCambios(actual, cambios, foto) {
+  const lineas = []
+  const vacio = (v) => (v === null || v === undefined || v === '' ? '(vacío)' : v)
+  for (const [campo, [columna, etiqueta]] of Object.entries(COLUMNAS)) {
+    if (!(campo in cambios)) continue
+    const antes = texto(actual[columna])
+    const ahora = texto(cambios[campo])
+    if (antes === ahora) continue
+    if (campo === 'horario' || campo === 'descripcion') {
+      lineas.push(`${etiqueta}:\n  antes: ${vacio(antes).replaceAll('\n', '\n         ')}\n  ahora: ${vacio(ahora).replaceAll('\n', '\n         ')}`)
+    } else {
+      lineas.push(`${etiqueta}: ${vacio(antes)} → ${vacio(ahora)}`)
+    }
+  }
+  const ciudadNueva = texto(cambios.ciudad) ?? texto(cambios.ciudadOtra)
+  if (ciudadNueva) {
+    lineas.push(`Ciudad: ${actual.ciudad} → ${ciudadNueva}${cambios.ciudadOtra ? ' (no está en la lista: hay que añadirla antes de aprobar)' : ''}`)
+  }
+  if (Array.isArray(cambios.especialidades)) {
+    const antes = new Set(actual.especialidades)
+    const ahora = new Set(cambios.especialidades)
+    const mas = [...ahora].filter((e) => !antes.has(e))
+    const menos = [...antes].filter((e) => !ahora.has(e))
+    if (mas.length || menos.length) {
+      lineas.push(`Especialidades: ${[...mas.map((e) => `+ ${e}`), ...menos.map((e) => `− ${e}`)].join(', ')}`)
+    }
+  }
+  if (typeof cambios.urgencias24h === 'boolean' && cambios.urgencias24h !== actual.urgencias_24h) {
+    lineas.push(`Urgencias 24 h: ${actual.urgencias_24h ? 'Sí' : 'No'} → ${cambios.urgencias24h ? 'Sí' : 'No'}`)
+  }
+  if (foto) lineas.push(`Foto de portada nueva: ${foto}`)
+  return lineas.length ? lineas.join('\n') : '(sin cambios en los datos)'
 }
 
 // ── Recogida ─────────────────────────────────────────────────────────────────
-const filas = await d1('SELECT id, tipo, datos, recibido FROM buzon ORDER BY id LIMIT 500')
+const filas = await d1('SELECT id, tipo, datos, recibido FROM buzon ORDER BY id LIMIT 200')
 if (!filas.length) {
   console.log('Buzón: vacío')
   process.exit(0)
@@ -108,7 +172,7 @@ if (!filas.length) {
 
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL_ESCRITURA })
 await db.connect()
-let resenas = 0, altas = 0, descartadas = 0, fallos = 0
+let resenas = 0, altas = 0, ediciones = 0, descartadas = 0, fallos = 0
 for (const fila of filas) {
   try {
     const datos = JSON.parse(fila.datos)
@@ -119,11 +183,26 @@ for (const fila of filas) {
         [datos.clinicaId, datos.nombreUsuario, datos.puntuacion, datos.comentario, fila.recibido.slice(0, 10)])
       if (r.rowCount) resenas++
       else descartadas++ // la clínica ya no existe
+    } else if (fila.tipo === 'alta' && datos.origen === 'web') {
+      const c = datos.clinica ?? {}
+      const quien = datos.contacto ?? {}
+      const foto = datos.foto ? await guardarFotoDelBuzon(fila.id, `alta-${fila.id}-${Date.now()}`) : null
+      await db.query(
+        `INSERT INTO altas (recibida, nombre, ciudad, direccion, telefono, email, web, whatsapp, redes_sociales,
+                            especialidades, horario, urgencias_24h, descripcion, foto_archivo, datos,
+                            solicitante, cargo, contacto_email, contacto_telefono, mensaje)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+        [fila.recibido, texto(c.nombre), texto(c.ciudad) ?? texto(c.ciudadOtra), texto(c.direccion), texto(c.telefono),
+         texto(c.email), texto(c.web), texto(c.whatsapp), texto(c.redes),
+         Array.isArray(c.especialidades) && c.especialidades.length ? c.especialidades.join(', ') : null,
+         texto(c.horario), c.urgencias24h === true, texto(c.descripcion), foto, datos,
+         texto(quien.nombre), texto(quien.cargo), texto(quien.email), texto(quien.telefono), texto(datos.mensaje)])
+      altas++
     } else if (fila.tipo === 'alta') {
       const c = extraerTally(datos)
       let foto = null
       try {
-        foto = await descargarFoto(c.foto, `alta-${fila.id}-${Date.now()}`)
+        foto = await descargarFotoTally(c.foto, `alta-${fila.id}-${Date.now()}`)
       } catch (e) {
         console.error(`Buzón: no se pudo descargar la foto del alta ${fila.id}: ${e.message}`)
       }
@@ -134,7 +213,29 @@ for (const fila of filas) {
         [fila.recibido, c.nombre, c.ciudad, c.direccion, c.telefono, c.email, c.web, c.whatsapp, c.redes,
          c.especialidades, c.horario, c.urgencias ? /^s[ií]/i.test(c.urgencias) : null, c.descripcion, foto, datos])
       altas++
+    } else if (fila.tipo === 'edicion') {
+      const { rows: [actual] } = await db.query(
+        `SELECT c.id, c.nombre, ci.nombre AS ciudad, c.direccion, c.telefono, c.whatsapp, c.email, c.web,
+                c.redes_sociales, c.horario, c.descripcion, c.urgencias_24h,
+                coalesce((SELECT array_agg(e.nombre) FROM clinica_especialidades ce
+                          JOIN especialidades e ON e.id = ce.especialidad_id WHERE ce.clinica_id = c.id), '{}') AS especialidades
+           FROM clinicas c JOIN ciudades ci ON ci.id = c.ciudad_id WHERE c.id = $1::bigint`,
+        [datos.clinicaId])
+      if (!actual) {
+        descartadas++ // la clínica ya no existe
+      } else {
+        const quien = datos.contacto ?? {}
+        const foto = datos.foto ? await guardarFotoDelBuzon(fila.id, `edicion-${fila.id}-${Date.now()}`) : null
+        await db.query(
+          `INSERT INTO ediciones (recibida, clinica_id, cambios, solicitante, cargo, contacto_email, contacto_telefono,
+                                  mensaje, foto_archivo, datos)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [fila.recibido, actual.id, resumirCambios(actual, datos.cambios ?? {}, foto), texto(quien.nombre), texto(quien.cargo),
+           texto(quien.email), texto(quien.telefono), texto(datos.mensaje), foto, datos])
+        ediciones++
+      }
     }
+    await d1('DELETE FROM archivos WHERE buzon_id = ?', [fila.id])
     await d1('DELETE FROM buzon WHERE id = ?', [fila.id])
   } catch (e) {
     fallos++
@@ -142,4 +243,4 @@ for (const fila of filas) {
   }
 }
 await db.end()
-console.log(`Buzón: ${resenas} reseñas y ${altas} altas recogidas${descartadas ? ` · ${descartadas} reseñas descartadas (clínica inexistente)` : ''}${fallos ? ` · ${fallos} con error (se reintentarán)` : ''}`)
+console.log(`Buzón: ${resenas} reseñas, ${altas} altas y ${ediciones} ediciones recogidas${descartadas ? ` · ${descartadas} descartadas (clínica inexistente)` : ''}${fallos ? ` · ${fallos} con error (se reintentarán)` : ''}`)
