@@ -28,15 +28,32 @@ async function esperarTurno() {
   ultimaPeticion = Date.now()
 }
 
-// Quita lo que confunde al buscador: piso, local, paréntesis…
+// Quita lo que confunde al buscador (piso, local, paréntesis…) y desarrolla abreviaturas
 function limpiarDireccion(direccion) {
   return direccion
     .replace(/\([^)]*\)?/g, ' ')
     .replace(/\b(bajos?|local|loc\.|planta|piso|esc\.|escalera|puerta|pta\.|nave|edificio|edif\.)\b[^,]*/gi, ' ')
+    .replace(/(^|[\s,])C\/\s*/gi, '$1Calle ')
+    .replace(/(^|[\s,])C\.\s+/g, '$1Calle ')
+    .replace(/(^|[\s,])(Av|Avda)\.\s*/gi, '$1Avenida ')
+    .replace(/(^|[\s,])(Pl|Pza|Plza)\.\s*/gi, '$1Plaza ')
+    .replace(/(^|[\s,])Ctra\.\s*/gi, '$1Carretera ')
+    .replace(/(^|[\s,])(Tr\.ª|Trva\.|Trav\.)\s*/gi, '$1Travesía ')
+    .replace(/(^|[\s,])(P\.º|Pº|Pg\.)\s*/gi, '$1Paseo ')
     .replace(/\s+,/g, ',')
     .replace(/,\s*,/g, ',')
     .replace(/\s{2,}/g, ' ')
     .trim()
+}
+
+// Las direcciones que vienen de Google ya traen código postal, ciudad y país: no se
+// repiten (repetidos, Nominatim no encuentra nada). Si no los traen, se añaden.
+function consultasPara(direccion, ciudad) {
+  const traeLugar = (d) => /\b\d{5}\b/.test(d) || /\b(españa|spain)\b/i.test(d) || normalizar(d).includes(normalizar(ciudad))
+  const conLugar = (d) => (traeLugar(d) ? d : `${d}, ${ciudad}, España`)
+  const limpia = limpiarDireccion(direccion)
+  const calleYNumero = limpia.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 2).join(', ')
+  return [...new Set([conLugar(direccion), conLugar(limpia), `${calleYNumero}, ${ciudad}, España`])]
 }
 
 function distanciaKm(a, b) {
@@ -59,8 +76,7 @@ async function buscar(texto) {
 /** Coordenadas de la dirección si el resultado es creíble (en su ciudad), si no null */
 export async function geocodificar(direccion, ciudad, centro = null) {
   if (!direccion || !ciudad) return null
-  const intentos = [...new Set([`${direccion}, ${ciudad}, España`, `${limpiarDireccion(direccion)}, ${ciudad}, España`])]
-  for (const q of intentos) {
+  for (const q of consultasPara(direccion, ciudad)) {
     const r = await buscar(q)
     if (!r) continue
     // Si solo encuentra la ciudad (no la calle), pondría la clínica en el centro: no vale
