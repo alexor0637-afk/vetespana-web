@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import { Loader2, PencilLine, X } from 'lucide-react'
 import type { DatosClinica } from '@/components/FormularioClinica'
@@ -68,9 +69,10 @@ export default function SolicitarCambios({ clinica }: { clinica: DatosClinica })
         <PencilLine size={14} /> ¿Es tu clínica? Actualiza sus datos
       </button>
 
-      {abierto && (
+      {/* En <body>: si no, la columna lateral (sticky) la deja por debajo de la cabecera */}
+      {abierto && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-0 sm:p-6"
+          className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/40 p-0 sm:p-6"
           onClick={(e) => {
             if (e.target === e.currentTarget) cerrar()
           }}
@@ -90,7 +92,8 @@ export default function SolicitarCambios({ clinica }: { clinica: DatosClinica })
             <p className="mb-6 text-sm text-gray-500">Para el equipo de la clínica.</p>
             <FormularioClinica modo="edicion" clinica={clinica} />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )
