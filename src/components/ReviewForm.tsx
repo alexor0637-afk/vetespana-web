@@ -31,7 +31,7 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
       const res = await fetch(`${URL_BUZON}/resenas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clinicaId: clinicId, slug: clinicSlug, nombreUsuario: nombre, puntuacion, comentario, website }),
+        body: JSON.stringify({ clinicaId: clinicId, slug: clinicSlug, clinicaNombre: clinicNombre, nombreUsuario: nombre, puntuacion, comentario, website }),
       })
       if (res.ok) {
         setEstado('ok')

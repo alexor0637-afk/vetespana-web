@@ -15,6 +15,12 @@
       "database_id": "00000000-0000-0000-0000-000000000000"
     }
   ],
+  // Avisos por email de cada envío. Con el plan gratis solo se puede escribir a una
+  // dirección verificada en Email Routing (la del dueño); el remitente es
+  // avisos@vetespana.es. El secreto AVISO_TOKEN (para /aviso) no va aquí: está en
+  // el Worker (wrangler secret put) y en ~/homelab/vetespana-web/.env.
+  "send_email": [{ "name": "AVISOS", "destination_address": "alexor0637@gmail.com" }],
+  "vars": { "AVISOS_DESTINO": "alexor0637@gmail.com" },
   // El formulario de reseñas de la web envía a buzon.vetespana.es. La dirección
   // *.workers.dev se mantiene como alternativa (el webhook de Tally puede usar cualquiera).
   "routes": [{ "pattern": "buzon.vetespana.es", "custom_domain": true }],
