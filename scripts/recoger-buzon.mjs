@@ -7,16 +7,18 @@
 //
 // Se ejecuta en cada publicación (contenedor de ~/homelab/vetespana-web):
 //   node scripts/recoger-buzon.mjs
-// Variables: DATABASE_URL_ESCRITURA, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, D1_DATABASE_ID, CARPETA_FOTOS
+// Variables: DATABASE_URL_ESCRITURA, CLOUDFLARE_ACCOUNT_ID, D1_DATABASE_ID, CARPETA_FOTOS y,
+// opcional, CLOUDFLARE_API_TOKEN (si no está, se usa la sesión de `wrangler login`).
 // Prueba sin Cloudflare: BUZON_JSON=envios.json (filas {id, tipo, datos, recibido}); no borra nada.
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
 
 const { CLOUDFLARE_ACCOUNT_ID: CUENTA, CLOUDFLARE_API_TOKEN: TOKEN, D1_DATABASE_ID: BD, BUZON_JSON } = process.env
 const CARPETA_FOTOS = process.env.CARPETA_FOTOS ?? '/fotos'
-if (!BUZON_JSON && (!CUENTA || !TOKEN || !BD)) {
-  console.log('Buzón: faltan las credenciales de Cloudflare; no se recoge nada')
+if (!BUZON_JSON && (!CUENTA || !BD)) {
+  console.log('Buzón: falta la configuración de Cloudflare; no se recoge nada')
   process.exit(0)
 }
 
@@ -24,6 +26,17 @@ async function d1(sql, params = []) {
   if (BUZON_JSON) {
     if (sql.startsWith('SELECT')) return JSON.parse(fs.readFileSync(BUZON_JSON, 'utf8'))
     return [] // en prueba no se borra nada
+  }
+  if (!TOKEN) {
+    // Sesión de wrangler: consulta con la CLI (los únicos parámetros son ids enteros)
+    const final = params.reduce((s, p) => {
+      if (!Number.isInteger(p)) throw new Error(`parámetro no entero: ${p}`)
+      return s.replace('?', String(p))
+    }, sql)
+    const salida = execFileSync(
+      'npx', ['wrangler', 'd1', 'execute', 'vetespana-buzon', '--remote', '--json', '--config', 'worker/wrangler.jsonc', '--command', final],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+    return JSON.parse(salida)[0].results
   }
   const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CUENTA}/d1/database/${BD}/query`, {
     method: 'POST',
