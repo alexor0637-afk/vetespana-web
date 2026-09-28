@@ -17,6 +17,10 @@ export const dynamicParams = false
 
 const SITIO = 'https://www.vetespana.es'
 
+// Sello «Estamos en VetEspaña» (BadgeBox): oculto por decisión del dueño (28/09/2026)
+// hasta nuevo aviso. Para volver a mostrarlo en las fichas, poner true.
+const MOSTRAR_SELLO = false
+
 interface Props {
   params: Promise<{ slug: string }>
 }
@@ -317,8 +321,8 @@ export default async function ClinicaPage({ params }: Props) {
               <ReviewForm clinicId={clinic.id} clinicSlug={clinic.slug} clinicNombre={clinic.nombre} />
             </div>
 
-            {/* Sello para que la clínica lo ponga en su web → backlink hacia su ficha */}
-            <BadgeBox slug={clinic.slug} nombre={clinic.nombre} />
+            {/* Sello para que la clínica lo ponga en su web → backlink hacia su ficha (ver MOSTRAR_SELLO) */}
+            {MOSTRAR_SELLO && <BadgeBox slug={clinic.slug} nombre={clinic.nombre} />}
 
             {/* Guías útiles — enlaces internos hacia el contenido */}
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
