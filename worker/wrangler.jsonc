@@ -15,6 +15,9 @@
       "database_id": "00000000-0000-0000-0000-000000000000"
     }
   ],
+  // El formulario de reseñas de la web envía a buzon.vetespana.es. La dirección
+  // *.workers.dev se mantiene como alternativa (el webhook de Tally puede usar cualquiera).
+  "routes": [{ "pattern": "buzon.vetespana.es", "custom_domain": true }],
   "workers_dev": true,
   "preview_urls": false
 }

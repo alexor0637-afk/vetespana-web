@@ -12,6 +12,14 @@
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },
-  "workers_dev": true,
+  // Dominios propios (Cloudflare crea sus DNS y certificados). vetespana.es (sin www)
+  // lo redirige a www una regla de redirección de la zona (Rules → Redirect Rules),
+  // que va antes que el Worker.
+  "routes": [
+    { "pattern": "www.vetespana.es", "custom_domain": true },
+    { "pattern": "vetespana.es", "custom_domain": true }
+  ],
+  // Sin dirección *.workers.dev: sería una copia de la web que Google podría indexar.
+  "workers_dev": false,
   "preview_urls": false
 }
