@@ -48,8 +48,8 @@ function elegir(eleccion: 'aceptadas' | 'rechazadas') {
   } catch {
     // sin almacenamiento se aplica solo a esta visita
   }
-  if (eleccion === 'aceptadas') cargarAnalytics()
-  else quitarAnalytics()
+  // Al aceptar, Analytics lo carga el efecto de AvisoCookies (un único sitio)
+  if (eleccion === 'rechazadas') quitarAnalytics()
   abiertoAMano = false
   avisarCambio()
 }
