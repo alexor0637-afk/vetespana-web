@@ -8,6 +8,8 @@ export interface ClinicPhoto {
   height?: number
   /** Foto sacada de Google Maps (Google Places): se muestra con su atribución */
   deGoogle?: boolean
+  /** Versión ligera para las tarjetas (scripts/miniaturas.mjs), si ya existe */
+  miniatura?: string
 }
 
 export interface Clinic {

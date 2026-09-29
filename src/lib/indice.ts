@@ -33,7 +33,8 @@ export function aIndice(clinicas: Clinic[]): FilaIndice[] {
     (c.urgencias24h ? URGENCIAS : 0) | (c.plan === 'Premium' ? PREMIUM : 0) | (c.verificada ? VERIFICADA : 0) |
       (c.fotoPortada?.deGoogle ? FOTO_GOOGLE : 0),
     c.valoracionMedia ?? 0,
-    c.fotoPortada?.url ?? '',
+    // Las tarjetas del navegador solo necesitan la miniatura (si existe)
+    c.fotoPortada?.miniatura ?? c.fotoPortada?.url ?? '',
     c.lat ?? null,
     c.lng ?? null,
   ])

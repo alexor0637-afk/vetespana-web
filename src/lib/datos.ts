@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { Client } from 'pg'
 import type { Clinic, ClinicPhoto, Review } from '@/types/clinic'
 import { CIUDADES_POR_COMUNIDAD } from '@/types/clinic'
@@ -11,6 +13,13 @@ import { filtrarClinicas, ordenarClinicas, type SearchParams } from '@/lib/searc
 // DATABASE_URL: postgresql://vetespana_lectura:…@postgres:5432/vetespana (rol de solo lectura)
 
 const URL_FOTOS = '/fotos/'
+// Carpeta de las fotos en el servidor (se copian a out/fotos al publicar). Ahí están
+// también las miniaturas (mini/, scripts/miniaturas.mjs): se usan solo si ya existen.
+const CARPETA_FOTOS = process.env.CARPETA_FOTOS ?? '/fotos'
+function miniatura(archivo: string): string | undefined {
+  const mini = 'mini/' + archivo.replace(/\.[^.]+$/, '.webp')
+  return fs.existsSync(path.join(CARPETA_FOTOS, mini)) ? URL_FOTOS + mini : undefined
+}
 
 // Slug de la base → valor de ciudad que usa la web (CIUDADES_POR_COMUNIDAD en clinic.ts).
 const CIUDAD_POR_SLUG_BD = new Map(
@@ -62,6 +71,7 @@ const foto = (f: FilaClinica['fotos'][number]): ClinicPhoto => ({
   width: f.ancho ?? undefined,
   height: f.alto ?? undefined,
   deGoogle: f.origen === 'google_places', // las que suben las clínicas llevan origen 'subida'
+  miniatura: miniatura(f.archivo),
 })
 
 async function cargar(): Promise<Datos> {

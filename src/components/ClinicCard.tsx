@@ -52,7 +52,7 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
         {clinic.fotoPortada ? (
           <>
             <Image
-              src={clinic.fotoPortada.url}
+              src={clinic.fotoPortada.miniatura ?? clinic.fotoPortada.url}
               alt={`Foto de ${clinic.nombre}`}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
