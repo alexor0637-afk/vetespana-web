@@ -3,13 +3,14 @@ import Link from '@/components/Enlace'
 import Image from 'next/image'
 import { GUIAS } from '@/data/guias'
 import { clinicasMasDe } from '@/lib/datos'
+import { metadatosPagina } from '@/lib/seo'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = metadatosPagina({
   title: 'Guías para dueños de mascotas',
   description:
     'Guías prácticas sobre el cuidado de tu mascota: cómo elegir veterinario, urgencias 24h, calendario de vacunas y precios. Consejos claros y de confianza.',
-  alternates: { canonical: 'https://www.vetespana.es/guias' },
-}
+  ruta: '/guias',
+})
 
 export default async function GuiasPage() {
   const masDe = await clinicasMasDe()

@@ -2,6 +2,7 @@ import Link from '@/components/Enlace'
 import Image from 'next/image'
 import { MapPin, Phone, Clock, Star, ShieldCheck, Zap, Navigation } from 'lucide-react'
 import type { Clinic } from '@/types/clinic'
+import { nombreCiudad } from '@/types/clinic'
 
 interface Props {
   clinic: Clinic
@@ -57,7 +58,7 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
             priority={priority}
           />
         ) : (
-          <ClinicPlaceholder nombre={clinic.nombre} ciudad={clinic.ciudad} />
+          <ClinicPlaceholder nombre={clinic.nombre} ciudad={nombreCiudad(clinic.ciudad)} />
         )}
 
         {/* Badges */}

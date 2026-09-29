@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { searchClinics } from '@/lib/datos'
 import { CIUDAD_DISPLAY } from '@/types/clinic'
 import { CIUDAD_POR_SLUG, ciudadSlug } from '@/lib/ciudad-slug'
-import { cityFacts } from '@/lib/city-content'
+import { cityFacts, clinicasVeterinarias } from '@/lib/city-content'
+import { metadatosPagina } from '@/lib/seo'
 import ClinicGrid from '@/components/ClinicGrid'
 import SearchBar from '@/components/SearchBar'
 import CitySeoContent from '@/components/CitySeoContent'
@@ -29,11 +30,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const display = CIUDAD_DISPLAY[entry.ciudad] ?? entry.ciudad
   const n = (await searchClinics({ ciudad: entry.ciudad })).length
 
-  return {
-    title: `Veterinarios en ${display}${n ? `: ${n} clínicas veterinarias` : ''}`,
-    description: `${n || 'Las mejores'} clínicas veterinarias en ${display}: veterinario cercano, urgencias 24h, especialidades, horarios, teléfono y reseñas. Encuentra tu clínica de confianza.`,
-    alternates: { canonical: `https://www.vetespana.es/veterinarios/${slug}` },
-  }
+  return metadatosPagina({
+    title: `Veterinarios en ${display}${n ? `: ${clinicasVeterinarias(n)}` : ''}`,
+    description: n
+      ? `${clinicasVeterinarias(n)} en ${display}: veterinario cercano, urgencias 24h, especialidades, horarios, teléfono y reseñas. Encuentra tu clínica de confianza.`
+      : `Clínicas veterinarias en ${display}: todavía no tenemos ninguna listada. Consulta las de ${entry.comunidad} o añade tu clínica gratis.`,
+    ruta: `/veterinarios/${slug}`,
+    // Sin clínicas es una página vacía: fuera de Google (y del sitemap) hasta que tenga alguna
+    indexar: n > 0,
+  })
 }
 
 export default async function VeterinariosCiudadPage({ params }: Props) {

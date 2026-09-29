@@ -134,3 +134,7 @@ export const CIUDAD_DISPLAY: Record<string, string> = {
   'Las Palmas': 'Las Palmas de Gran Canaria',
   'Vitoria': 'Vitoria-Gasteiz',
 }
+
+// Nombre de la ciudad para mostrar («Logrono» → «Logroño»). El valor guardado se
+// sigue usando tal cual como clave en enlaces y filtros.
+export const nombreCiudad = (ciudad: string) => CIUDAD_DISPLAY[ciudad] ?? ciudad

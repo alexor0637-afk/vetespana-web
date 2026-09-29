@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { searchClinics } from '@/lib/datos'
 import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDADES, COMUNIDAD_EMOJI } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
-import { cityFacts } from '@/lib/city-content'
+import { cityFacts, clinicasVeterinarias } from '@/lib/city-content'
+import { metadatosPagina } from '@/lib/seo'
 import ClinicGrid from '@/components/ClinicGrid'
 import SearchBar from '@/components/SearchBar'
 import CitySeoContent from '@/components/CitySeoContent'
@@ -28,11 +29,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const comunidad = COMUNIDAD_POR_SLUG[slug]
   if (!comunidad) return {}
   const n = (await searchClinics({ comunidad })).length
-  return {
-    title: `Veterinarios en ${comunidad}: ${n} clínicas veterinarias`,
-    description: `${n} clínicas veterinarias en ${comunidad}: busca por ciudad, urgencias 24h y especialidades. Teléfono, horario, dirección y reseñas de cada clínica.`,
-    alternates: { canonical: `https://www.vetespana.es/comunidades/${slug}` },
-  }
+  return metadatosPagina({
+    title: `Veterinarios en ${comunidad}: ${clinicasVeterinarias(n)}`,
+    description: `${clinicasVeterinarias(n)} en ${comunidad}: busca por ciudad, urgencias 24h y especialidades. Teléfono, horario, dirección y reseñas de cada clínica.`,
+    ruta: `/comunidades/${slug}`,
+    indexar: n > 0,
+  })
 }
 
 export default async function ComunidadPage({ params }: Props) {

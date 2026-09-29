@@ -84,15 +84,35 @@ async function guardarFotoDelBuzon(filaId, prefijo) {
   return nombre
 }
 
-// Foto de un alta de Tally (enlace que puede caducar: se descarga ya)
+// Tipo real de una imagen por sus primeros bytes (no por lo que diga el envío)
+function tipoImagen(datos) {
+  if (datos[0] === 0xff && datos[1] === 0xd8 && datos[2] === 0xff) return 'jpg'
+  if (datos.subarray(0, 4).toString('hex') === '89504e47') return 'png'
+  if (datos.subarray(0, 4).toString() === 'RIFF' && datos.subarray(8, 12).toString() === 'WEBP') return 'webp'
+  return null
+}
+
+// Foto de un alta de Tally (enlace que puede caducar: se descarga ya). La URL viene dentro
+// del envío, así que solo se descarga del almacenamiento de Tally, con tiempo y tamaño
+// máximos, y solo si es de verdad una imagen. (La entrada /tally del buzón está cerrada
+// desde el 29/09/2026: esto solo queda por si había alguna pendiente.)
+const MAX_FOTO_TALLY = 5 * 1024 * 1024
 async function descargarFotoTally(archivos, prefijo) {
   const f = Array.isArray(archivos) ? archivos[0] : null
   if (!f?.url) return null
-  const ext = EXTENSIONES[f.mimeType] ?? (path.extname(f.name ?? '').slice(1).toLowerCase() || 'jpg')
-  const nombre = `${prefijo}.${ext}`
-  const res = await fetch(f.url)
+  const url = new URL(f.url)
+  if (url.protocol !== 'https:' || !(url.hostname === 'tally.so' || url.hostname.endsWith('.tally.so'))) {
+    throw new Error(`foto fuera de Tally (${url.hostname})`)
+  }
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
   if (!res.ok) throw new Error(`foto ${res.status}`)
-  fs.writeFileSync(path.join(CARPETA_FOTOS, nombre), Buffer.from(await res.arrayBuffer()))
+  if (Number(res.headers.get('content-length') ?? 0) > MAX_FOTO_TALLY) throw new Error('foto de más de 5 MB')
+  const datos = Buffer.from(await res.arrayBuffer())
+  if (datos.length > MAX_FOTO_TALLY) throw new Error('foto de más de 5 MB')
+  const ext = tipoImagen(datos)
+  if (!ext) throw new Error('la foto no es JPEG, PNG ni WebP')
+  const nombre = `${prefijo}.${ext}`
+  fs.writeFileSync(path.join(CARPETA_FOTOS, nombre), datos)
   return nombre
 }
 

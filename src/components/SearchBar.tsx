@@ -35,7 +35,7 @@ export default function SearchBar({ initialCiudad = '', initialQuery = '' }: Pro
     <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
       {/* Ciudad con autocompletado: escribe "madr" y aparece Madrid */}
       <div className="flex-1 min-w-0">
-        <CitySelect value={ciudad} onChange={setCiudad} />
+        <CitySelect value={ciudad} onChange={setCiudad} enterEnvia />
       </div>
 
       {/* Búsqueda libre */}

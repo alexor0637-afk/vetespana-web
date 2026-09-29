@@ -11,19 +11,30 @@ function hashLugar(s: string): number {
   return h
 }
 
+// «1 clínica veterinaria» / «5 clínicas veterinarias»
+export function clinicasVeterinarias(n: number): string {
+  return n === 1 ? '1 clínica veterinaria' : `${n} clínicas veterinarias`
+}
+
 export function textoSeoLugar(lugar: string, count: number, especialidad?: string): string[] {
-  const n = count > 0 ? `${count}` : 'las mejores'
+  if (count === 0) {
+    return [
+      `Todavía no tenemos ninguna clínica veterinaria listada en ${lugar}.`,
+      `Si tienes o conoces una clínica en ${lugar}, puedes añadirla gratis desde «Añade tu clínica». Mientras tanto, puedes consultar las clínicas de otras ciudades de la zona.`,
+    ]
+  }
+  const n = clinicasVeterinarias(count)
   const intros = [
-    `¿Buscas un veterinario en ${lugar}? En VetEspaña reunimos ${n} clínicas veterinarias de ${lugar} para que compares y elijas con confianza.`,
-    `En ${lugar} encontrarás ${n} clínicas veterinarias listadas en VetEspaña, con toda la información que necesitas para cuidar de tu mascota.`,
-    `Hemos reunido ${n} clínicas veterinarias en ${lugar} para ayudarte a encontrar el centro que mejor se adapta a ti y a tu mascota.`,
-    `Descubre ${n} clínicas veterinarias en ${lugar}: compara horarios, especialidades y opiniones antes de decidir.`,
+    `¿Buscas un veterinario en ${lugar}? En VetEspaña reunimos ${n} de ${lugar} para que compares y elijas con confianza.`,
+    `En ${lugar} encontrarás ${n} en VetEspaña, con toda la información que necesitas para cuidar de tu mascota.`,
+    `Hemos reunido ${n} en ${lugar} para ayudarte a encontrar el centro que mejor se adapta a ti y a tu mascota.`,
+    `Descubre ${n} en ${lugar}: consulta horarios, especialidades y opiniones antes de decidir.`,
   ]
   const intro = intros[hashLugar(lugar) % intros.length]
 
   const segundo = especialidad
     ? `Aquí ves los centros de ${lugar} con servicios de ${especialidad.toLowerCase()}. En cada ficha encontrarás el teléfono, la dirección, el horario y las opiniones de otros dueños de mascotas.`
-    : `En cada ficha puedes ver fotos, horarios reales, teléfono, especialidades y reseñas. Filtra por urgencias 24h o por especialidad para encontrar exactamente lo que necesitas, y llama o escribe a la clínica directamente.`
+    : `En cada ficha puedes ver el teléfono, la dirección, el horario, las especialidades y, cuando las hay, fotos y reseñas. Las clínicas con urgencias 24 horas aparecen marcadas en el listado; llama o escribe directamente a la que elijas.`
 
   return [intro, segundo]
 }
@@ -54,16 +65,18 @@ export function buildCityFaq(
   count24h: number,
   topEsp: string[],
 ): FaqItem[] {
+  // Sin clínicas no hay nada que responder (ni que declarar a Google)
+  if (total === 0) return []
   const faq: FaqItem[] = [
     {
       q: `¿Cuántas clínicas veterinarias hay en ${lugarDisplay}?`,
-      a: `En VetEspaña tenemos ${total} clínicas veterinarias en ${lugarDisplay} con su teléfono, dirección, horario y especialidades.`,
+      a: `En VetEspaña tenemos ${clinicasVeterinarias(total)} en ${lugarDisplay} con su teléfono, dirección, horario y especialidades.`,
     },
     {
       q: `¿Hay veterinarios de urgencias 24h en ${lugarDisplay}?`,
       a:
         count24h > 0
-          ? `Sí. En ${lugarDisplay} hay ${count24h} clínica${count24h !== 1 ? 's' : ''} veterinaria${count24h !== 1 ? 's' : ''} con urgencias 24 horas. Usa el filtro "Solo con urgencias 24h" para verlas.`
+          ? `Sí. En ${lugarDisplay} hay ${clinicasVeterinarias(count24h)} con urgencias 24 horas. Aparecen marcadas con «Urgencias 24h» en el listado.`
           : `De momento no tenemos listada ninguna clínica con urgencias 24h en ${lugarDisplay}. Puedes consultar las clínicas cercanas o las de tu comunidad.`,
     },
   ]

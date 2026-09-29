@@ -24,6 +24,8 @@ interface Props {
   /** Texto de la primera opción, la que deja la ciudad vacía */
   opcionVacia?: string
   etiqueta?: string
+  /** Enter sin haber escrito nada (o con la lista cerrada) envía el formulario (buscador) */
+  enterEnvia?: boolean
 }
 
 /**
@@ -37,10 +39,13 @@ export default function CitySelect({
   id = 'lista-ciudades',
   opcionVacia = 'Todas las ciudades',
   etiqueta = 'Buscar ciudad',
+  enterEnvia = false,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
+  // true si el usuario se ha movido por la lista con las flechas
+  const [navegando, setNavegando] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
@@ -48,38 +53,77 @@ export default function CitySelect({
 
   const results = useMemo(() => {
     const q = norm(query.trim())
-    const base = q
-      ? ALL_CITIES.filter((c) => norm(c.display).includes(q) || norm(c.value).includes(q))
-      : ALL_CITIES
-    return base.slice(0, 60)
+    if (!q) return ALL_CITIES.slice(0, 60)
+    // Primero la que coincide exactamente y las que empiezan por lo escrito
+    // («palma» → Palma antes que Las Palmas); dentro de cada grupo, orden alfabético.
+    const orden = (c: (typeof ALL_CITIES)[number]) =>
+      norm(c.display) === q || norm(c.value) === q ? 0 : norm(c.display).startsWith(q) ? 1 : 2
+    return ALL_CITIES
+      .filter((c) => norm(c.display).includes(q) || norm(c.value).includes(q))
+      .sort((a, b) => orden(a) - orden(b))
+      .slice(0, 60)
   }, [query])
 
-  // Cierra al hacer clic fuera
+  // Ciudad del texto escrito sin elegirlo de la lista: la que coincide exactamente
+  // (sin tildes) o, si solo hay una coincidencia, esa.
+  function ciudadEscrita(): string | null {
+    const q = norm(query.trim())
+    if (!q) return null
+    const exacta = ALL_CITIES.find((c) => norm(c.display) === q || norm(c.value) === q)
+    if (exacta) return exacta.value
+    return results.length === 1 ? results[0].value : null
+  }
+
+  // Al salir sin elegir (clic fuera, Tab) se queda la ciudad escrita si se reconoce:
+  // así «Sevilla» + Buscar busca en Sevilla aunque no se haya pulsado la opción.
+  function cerrar() {
+    const escrita = ciudadEscrita()
+    if (escrita && escrita !== value) onChange(escrita)
+    setQuery('')
+    setNavegando(false)
+    setOpen(false)
+  }
+
+  // Cierra al hacer clic fuera (se vuelve a enganchar en cada render para ver el texto actual)
   useEffect(() => {
+    if (!open) return
     function onDoc(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) cerrar()
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
-  }, [])
+  })
 
   // Al cambiar el texto buscado, el resaltado vuelve a la primera opción
   function buscar(texto: string) {
     setQuery(texto)
     setHighlight(0)
+    setNavegando(false)
   }
 
   function select(val: string) {
     onChange(val)
     setQuery('')
+    setHighlight(0)
+    setNavegando(false)
     setOpen(false)
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight((h) => Math.min(h + 1, results.length - 1)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight((h) => Math.max(h - 1, 0)) }
-    else if (e.key === 'Enter') { e.preventDefault(); if (results[highlight]) select(results[highlight].value) }
-    else if (e.key === 'Escape') { setOpen(false) }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setNavegando(true); setHighlight((h) => Math.min(h + 1, results.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setOpen(true); setNavegando(true); setHighlight((h) => Math.max(h - 1, 0)) }
+    else if (e.key === 'Enter') {
+      const texto = query.trim()
+      // Con algo escrito (o moviéndose con las flechas), Enter elige la opción resaltada
+      const opcion = open && (texto || navegando) ? results[highlight] : undefined
+      if (opcion) { e.preventDefault(); select(opcion.value); return }
+      if (open && texto) { e.preventDefault(); return } // escrito algo sin coincidencias
+      // Sin escribir nada: cierra la lista; en el buscador, además, busca
+      setOpen(false)
+      if (!enterEnvia) e.preventDefault()
+    }
+    else if (e.key === 'Escape') { setQuery(''); setNavegando(false); setOpen(false) }
+    else if (e.key === 'Tab') { if (open) cerrar() }
   }
 
   // Mantiene la opción resaltada a la vista

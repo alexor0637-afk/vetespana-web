@@ -1,17 +1,13 @@
 import type { Metadata } from 'next'
 import NearbyClient from '@/components/NearbyClient'
+import { metadatosPagina } from '@/lib/seo'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = metadatosPagina({
   title: 'Veterinario cerca de mí — Clínicas veterinarias cercanas',
   description:
     'Encuentra el veterinario más cercano a tu ubicación. Clínicas veterinarias cerca de ti en toda España, ordenadas por distancia: horarios, teléfono, urgencias 24h y cómo llegar.',
-  alternates: { canonical: 'https://www.vetespana.es/cerca-de-mi' },
-  openGraph: {
-    title: 'Veterinario cerca de mí | VetEspaña',
-    description: 'Las clínicas veterinarias más cercanas a tu ubicación en España.',
-    url: 'https://www.vetespana.es/cerca-de-mi',
-  },
-}
+  ruta: '/cerca-de-mi',
+})
 
 export default function CercaDeMiPage() {
   return (

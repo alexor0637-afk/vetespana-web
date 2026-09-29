@@ -21,7 +21,7 @@ export default async function HomePage() {
             veterinaria cerca de ti
           </h1>
           <p className="text-teal-100 text-lg mb-8">
-            Más de {masDe} clínicas veterinarias en toda España. Con fotos, horarios, especialidades y reseñas reales.
+            Más de {masDe} clínicas veterinarias en toda España, con su teléfono, horario, dirección y especialidades.
           </p>
 
           <div className="bg-white rounded-2xl p-3 shadow-2xl">
@@ -125,13 +125,13 @@ export default async function HomePage() {
             {[
               {
                 icon: <ShieldCheck className="text-teal-600" size={28} />,
-                title: 'Clínicas verificadas',
-                desc: 'Revisamos cada clínica manualmente antes de publicarla. Solo encontrarás centros reales y de confianza.',
+                title: 'Clínicas de toda España',
+                desc: 'Teléfono, dirección, horario y especialidades de cada centro. Los propios equipos veterinarios pueden revisar y corregir su ficha.',
               },
               {
                 icon: <Star className="text-amber-500" size={28} />,
-                title: 'Reseñas reales',
-                desc: 'Opiniones de dueños de mascotas como tú. Sin reseñas compradas, solo experiencias auténticas.',
+                title: 'Opiniones moderadas',
+                desc: 'Opiniones de dueños de mascotas como tú. Revisamos cada una antes de publicarla para filtrar el spam y el contenido ofensivo.',
               },
               {
                 icon: <Zap className="text-red-500" size={28} />,
@@ -154,7 +154,7 @@ export default async function HomePage() {
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-3">¿Tienes una clínica veterinaria?</h2>
           <p className="text-gray-600 mb-6">
-            Añade tu clínica gratis y llega a miles de dueños de mascotas que buscan veterinario cada mes en tu ciudad.
+            Añade tu clínica gratis y aparece donde los dueños de mascotas buscan veterinario en tu ciudad.
           </p>
           <Link
             href="/alta-clinica"

@@ -12,7 +12,7 @@ export const dynamic = 'force-static'
 // modificación en la base. IMPORTANTE: fecha FIJA, no `new Date()`: si cada
 // generación dijera "modificada ahora", Google acaba ignorando la señal lastmod.
 // → Al cambiar contenido general (ciudades, textos…), sube esta fecha.
-const CONTENIDO_ACTUALIZADO = new Date('2026-09-27')
+const CONTENIDO_ACTUALIZADO = new Date('2026-09-29')
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://www.vetespana.es'
@@ -43,9 +43,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }))
 
-  // Una URL por ciudad — el mayor activo de SEO local ("veterinario en {ciudad}")
+  const clinicas = await getAllClinics()
+
+  // Una URL por ciudad — el mayor activo de SEO local ("veterinario en {ciudad}").
+  // Las ciudades sin clínicas quedan fuera: son páginas vacías (y llevan noindex).
+  const ciudadesConClinicas = new Set(clinicas.map((c) => c.ciudad))
   const ciudadPages: MetadataRoute.Sitemap = Object.values(CIUDADES_POR_COMUNIDAD)
     .flat()
+    .filter((ciudad) => ciudadesConClinicas.has(ciudad))
     .map((ciudad) => ({
       url: `${baseUrl}/veterinarios/${ciudadSlug(ciudad)}`,
       lastModified: CONTENIDO_ACTUALIZADO,
@@ -54,7 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
 
   // Fichas individuales — el grueso del valor SEO, con su fecha real de modificación
-  const clinicPages: MetadataRoute.Sitemap = (await getAllClinics()).map((c) => ({
+  const clinicPages: MetadataRoute.Sitemap = clinicas.map((c) => ({
     url: `${baseUrl}/clinicas/${c.slug}`,
     lastModified: c.actualizado ? new Date(c.actualizado) : CONTENIDO_ACTUALIZADO,
     changeFrequency: 'weekly' as const,

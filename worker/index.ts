@@ -4,8 +4,9 @@
 //   POST /resenas    reseñas del formulario de cada ficha (components/ReviewForm.tsx)
 //   POST /altas      altas de clínicas nuevas (components/FormularioClinica.tsx)
 //   POST /ediciones  cambios que pide el dueño de una clínica (el mismo formulario)
-//   POST /tally      altas del formulario antiguo de Tally (webhook), por si aún llega alguna
-//   POST /aviso      avisos del servidor de casa (p. ej. una publicación fallida);
+//   /tally           cerrado (410): era el webhook del formulario antiguo de Tally, que
+//                    aceptaba envíos de cualquiera sin firma ni límite (29/09/2026)
+//   POST /aviso     avisos del servidor de casa (p. ej. una publicación fallida);
 //                    necesita el token AVISO_TOKEN (secreto del Worker)
 // Todo se guarda tal cual en D1 (ver buzon.sql). El servidor de casa lo recoge cada
 // 10 minutos (scripts/recoger-buzon.mjs) y lo pasa a Postgres PENDIENTE de aprobar en
@@ -38,7 +39,6 @@ interface Contexto {
 const MAX_BYTES = 64 * 1024
 const MAX_BYTES_FORMULARIO = 2_300_000 // con una foto ya reducida en el navegador
 const MAX_FOTO_BASE64 = 1_600_000 // ~1,2 MB de imagen (una fila de D1 admite 2 MB)
-const FORMULARIO_TALLY = 'PdGVPe'
 // La web desde la que se aceptan envíos (el navegador envía la cabecera Origin)
 const ORIGENES = ['https://www.vetespana.es', 'https://vetespana.es']
 const WEB = 'https://www.vetespana.es'
@@ -69,7 +69,7 @@ const buzon = {
       }
       return conCors(await manejador(request, env, ctx), origen)
     }
-    if (pathname === '/tally') return recibirTally(request, env, ctx)
+    if (pathname === '/tally') return json({ error: 'Este formulario ya no se usa: https://www.vetespana.es/alta-clinica' }, 410)
     if (pathname === '/aviso') return recibirAviso(request, env)
     return json({ error: 'No encontrado' }, 404)
   },
@@ -317,49 +317,6 @@ async function recibirFormulario(request: Request, env: Env, ctx: Contexto, tipo
     await env.BUZON.prepare('INSERT INTO archivos (buzon_id, tipo, datos) VALUES (?, ?, ?)').bind(id, archivo.tipo, archivo.datos).run()
   }
   ctx.waitUntil(avisar(env, asunto, lineas))
-  return json({ ok: true })
-}
-
-// ── Altas del formulario antiguo de Tally ────────────────────────────────────
-interface CampoTally {
-  label?: string
-  value?: unknown
-  options?: { id: string; text: string }[]
-}
-
-function valorTally(campos: CampoTally[], etiqueta: RegExp): string {
-  const campo = campos.find((f) => etiqueta.test(f.label ?? ''))
-  const v = campo?.value
-  if (v === null || v === undefined || v === '') return '—'
-  if (Array.isArray(v)) {
-    return v.map((x) => (typeof x === 'string' ? campo?.options?.find((o) => o.id === x)?.text ?? x : 'archivo')).join(', ')
-  }
-  if (typeof v === 'boolean') return v ? 'Sí' : 'No'
-  return String(v).slice(0, 300)
-}
-
-async function recibirTally(request: Request, env: Env, ctx: Contexto): Promise<Response> {
-  if (request.method !== 'POST') return json({ error: 'Método no permitido' }, 405)
-  const c = await leerJson(request)
-  const datos = c?.data as Record<string, unknown> | undefined
-  if (!c || c.eventType !== 'FORM_RESPONSE' || !datos || datos.formId !== FORMULARIO_TALLY || !Array.isArray(datos.fields)) {
-    return json({ error: 'Petición no válida' }, 400)
-  }
-  await guardar(env, 'alta', c)
-  const campos = datos.fields as CampoTally[]
-  const nombre = valorTally(campos, /^nombre/i)
-  const ciudad = valorTally(campos, /^ciudad/i)
-  ctx.waitUntil(avisar(env, `Nueva alta (Tally): ${nombre} (${ciudad})`, [
-    `Clínica: ${nombre}`,
-    `Ciudad: ${ciudad}`,
-    `Dirección: ${valorTally(campos, /direcci[oó]n/i)}`,
-    `Teléfono: ${valorTally(campos, /^tel[eé]fono/i)}`,
-    `Email: ${valorTally(campos, /e-?mail|correo/i)}`,
-    `Web: ${valorTally(campos, /^web/i)}`,
-    '',
-    'Para publicarla: en NocoDB, tabla «altas», revisa los datos y pon el estado en «aprobada».',
-    'Si es spam o está repetida, ponla en «descartada».',
-  ]))
   return json({ ok: true })
 }
 

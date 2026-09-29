@@ -5,16 +5,17 @@ import ClinicGrid from '@/components/ClinicGrid'
 import FilterBar from '@/components/FilterBar'
 import SearchBar, { SearchBarDesdeUrl } from '@/components/SearchBar'
 import ClinicasExplorer from '@/components/ClinicasExplorer'
+import { metadatosPagina } from '@/lib/seo'
 
 // Página estática. Los filtros (?especialidad=, ?urgencias=1, ?q=…) se aplican en
 // el navegador sobre el índice de clínicas; ?ciudad= y ?comunidad= solas redirigen
 // a sus URLs limpias (/veterinarios/… y /comunidades/…).
-export const metadata: Metadata = {
+export const metadata: Metadata = metadatosPagina({
   title: 'Todas las clínicas veterinarias en España',
   description:
     'Directorio de clínicas veterinarias en España. Filtra por comunidad, ciudad, especialidad y urgencias 24h. Consulta teléfono, horario y dirección.',
-  alternates: { canonical: 'https://www.vetespana.es/clinicas' },
-}
+  ruta: '/clinicas',
+})
 
 const PAGE = 24
 

@@ -34,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: 'VetEspaña',
       title: 'VetEspaña — Encuentra tu veterinario de confianza en España',
       description:
-        `Más de ${masDe} clínicas veterinarias en toda España. Fotos, horarios, especialidades, urgencias 24h y reseñas reales. Busca veterinario por ciudad.`,
+        `Más de ${masDe} clínicas veterinarias en toda España. Teléfono, horarios, especialidades y urgencias 24h. Busca veterinario por ciudad.`,
       url: 'https://www.vetespana.es',
     },
     twitter: {

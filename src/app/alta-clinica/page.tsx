@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import AltaClinica from '@/components/AltaClinica'
+import { metadatosPagina } from '@/lib/seo'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = metadatosPagina({
   title: 'Añade tu clínica veterinaria',
   description:
     'Registra tu clínica veterinaria en VetEspaña gratis, o actualiza sus datos si ya aparece. Llega a los dueños de mascotas que buscan veterinario en tu ciudad.',
-  alternates: { canonical: 'https://www.vetespana.es/alta-clinica' },
-}
+  ruta: '/alta-clinica',
+})
 
 export default function AltaClinicaPage() {
   return (

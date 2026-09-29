@@ -11,11 +11,24 @@ import { GUIAS } from '@/data/guias'
 import ReviewForm from '@/components/ReviewForm'
 import SolicitarCambios from '@/components/SolicitarCambios'
 import BadgeBox from '@/components/BadgeBox'
+import { horarioSchema } from '@/lib/horario'
+import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
+import { nombreCiudad } from '@/types/clinic'
 
 // Web estática: se genera una ficha por clínica en el build (datos de Postgres).
 export const dynamicParams = false
 
-const SITIO = 'https://www.vetespana.es'
+const sinTildes = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+// Dirección para mostrar: sin «, España» al final y con la ciudad solo si no aparece
+// ya («…, 23003 Jaén, España» + «Jaén» → «…, 23003 Jaén»).
+function direccionConCiudad(direccion: string | null | undefined, ciudadClave: string): string {
+  const ciudad = nombreCiudad(ciudadClave)
+  const d = (direccion ?? '').replace(/,?\s*(España|Spain)\s*$/i, '').trim()
+  if (!d) return ciudad
+  const yaEsta = [ciudad, ciudadClave].some((c) => sinTildes(d).includes(sinTildes(c)))
+  return yaEsta ? d : `${d}, ${ciudad}`
+}
 
 // Sello «Estamos en VetEspaña» (BadgeBox): oculto por decisión del dueño (28/09/2026)
 // hasta nuevo aviso. Para volver a mostrarlo en las fichas, poner true.
@@ -34,34 +47,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const clinic = await getClinicBySlug(slug)
   if (!clinic) return {}
 
-  // Descripción meta única: combina descripción de Airtable + datos clave
+  // Descripción meta única: combina la descripción guardada + datos clave
+  const ciudad = nombreCiudad(clinic.ciudad)
   const espDestacadas = clinic.especialidades.filter((e) => !['Perros', 'Gatos'].includes(e)).slice(0, 3)
   const metaDesc = clinic.descripcion
     ? clinic.descripcion.substring(0, 155)
     : [
-        `${clinic.nombre} — veterinario en ${clinic.ciudad}.`,
+        `${clinic.nombre} — veterinario en ${ciudad}.`,
         clinic.urgencias24h ? 'Urgencias 24h.' : '',
         espDestacadas.length ? `Especialidades: ${espDestacadas.join(', ')}.` : 'Consultas, vacunas y cirugía.',
         clinic.telefono ? `Tel: ${clinic.telefono}.` : '',
       ].filter(Boolean).join(' ').substring(0, 155)
 
   const title = clinic.urgencias24h
-    ? `${clinic.nombre} — Veterinario 24h en ${clinic.ciudad}`
-    : `${clinic.nombre} — Clínica veterinaria en ${clinic.ciudad}`
+    ? `${clinic.nombre} — Veterinario 24h en ${ciudad}`
+    : `${clinic.nombre} — Clínica veterinaria en ${ciudad}`
 
-  return {
+  // Al compartirla: la foto de la clínica o, si no tiene, la imagen general de VetEspaña
+  return metadatosPagina({
     title,
     description: metaDesc,
-    alternates: {
-      canonical: `https://www.vetespana.es/clinicas/${slug}`,
-    },
-    openGraph: {
-      title: clinic.nombre,
-      description: metaDesc,
-      url: `https://www.vetespana.es/clinicas/${slug}`,
-      images: clinic.fotoPortada ? [{ url: SITIO + clinic.fotoPortada.url, alt: `Clínica veterinaria ${clinic.nombre}` }] : [],
-    },
-  }
+    ruta: `/clinicas/${slug}`,
+    imagen: clinic.fotoPortada
+      ? { url: SITIO + clinic.fotoPortada.url, alt: `Clínica veterinaria ${clinic.nombre}` }
+      : undefined,
+  })
 }
 
 const GRADIENTS = [
@@ -123,22 +133,10 @@ export default async function ClinicaPage({ params }: Props) {
   const whatsappUrl = `https://wa.me/${whatsappNumero.startsWith('34') ? '' : '34'}${whatsappNumero}`
 
   // JSON-LD para SEO — VeterinaryCare con horario y descripción
-  // Parsea las líneas de horario en OpeningHoursSpecification
-  const DAYS_ES: Record<string, string> = {
-    lunes: 'Monday', martes: 'Tuesday', miércoles: 'Wednesday', miercoles: 'Wednesday',
-    jueves: 'Thursday', viernes: 'Friday', sábado: 'Saturday', sabado: 'Saturday', domingo: 'Sunday',
-  }
-  const openingHours: { '@type': string; dayOfWeek: string | string[]; opens: string; closes: string }[] = []
-  if (clinic.horario) {
-    for (const line of clinic.horario.split('\n')) {
-      const m = line.match(/^(\w+):\s*(\d{1,2}[:–\-]\d{2})[\s–\-–]+(\d{1,2}[:–\-]\d{2})/i)
-      if (!m) continue
-      const day = DAYS_ES[m[1].toLowerCase()]
-      if (!day) continue
-      const fmt = (t: string) => t.replace(/[^\d:]/g, ':').replace(/^(\d):/, '0$1:')
-      openingHours.push({ '@type': 'OpeningHoursSpecification', dayOfWeek: day, opens: fmt(m[2]), closes: fmt(m[3]) })
-    }
-  }
+  const ciudad = nombreCiudad(clinic.ciudad)
+  const direccion = direccionConCiudad(clinic.direccion, clinic.ciudad)
+  const openingHours = horarioSchema(clinic.horario)
+  const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(clinic.nombre + ' ' + (clinic.direccion ?? '') + ' ' + ciudad)}`
 
   // Normaliza la web de la clínica a una URL absoluta válida (en Airtable a veces
   // está sin "https://"), para que el dato estructurado no salga roto.
@@ -157,7 +155,7 @@ export default async function ClinicaPage({ params }: Props) {
     address: {
       '@type': 'PostalAddress',
       streetAddress: clinic.direccion,
-      addressLocality: clinic.ciudad,
+      addressLocality: ciudad,
       addressCountry: 'ES',
     },
     telephone: clinic.telefono,
@@ -182,7 +180,7 @@ export default async function ClinicaPage({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSeguro(jsonLd) }}
       />
 
       <div className="max-w-5xl mx-auto px-4 py-8">
@@ -210,7 +208,7 @@ export default async function ClinicaPage({ params }: Props) {
                   sizes="(max-width: 1024px) 100vw, 66vw"
                 />
               ) : (
-                <PagePlaceholder nombre={clinic.nombre} ciudad={clinic.ciudad} />
+                <PagePlaceholder nombre={clinic.nombre} ciudad={ciudad} />
               )}
             </div>
 
@@ -236,8 +234,8 @@ export default async function ClinicaPage({ params }: Props) {
 
               <h1 className="text-3xl font-bold text-gray-900 mb-1">{clinic.nombre}</h1>
               <p className="text-gray-500 flex items-center gap-1.5">
-                <MapPin size={15} className="text-teal-500" />
-                {clinic.direccion}, {clinic.ciudad}
+                <MapPin size={15} className="text-teal-500 shrink-0" />
+                {direccion}
               </p>
 
               {clinic.valoracionMedia && (
@@ -247,6 +245,27 @@ export default async function ClinicaPage({ params }: Props) {
                   <span className="text-sm text-gray-600">({reviews.length} reseña{reviews.length !== 1 ? 's' : ''})</span>
                 </div>
               )}
+
+              {/* En el móvil la columna de contacto queda al final de la página: las dos
+                  acciones principales, aquí arriba (en pantallas grandes ya se ven al lado) */}
+              <div className="flex gap-2 mt-4 lg:hidden">
+                {clinic.telefono && (
+                  <a
+                    href={`tel:${clinic.telefono}`}
+                    className="flex-1 flex items-center justify-center gap-2 bg-teal-700 hover:bg-teal-800 text-white font-semibold py-3 rounded-xl transition-colors"
+                  >
+                    <Phone size={16} /> Llamar
+                  </a>
+                )}
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-teal-300 text-gray-700 font-semibold py-3 rounded-xl transition-colors"
+                >
+                  <MapPin size={16} className="text-teal-600" /> Cómo llegar
+                </a>
+              </div>
             </div>
 
             {/* Descripción */}
@@ -297,9 +316,14 @@ export default async function ClinicaPage({ params }: Props) {
 
             {/* Reseñas */}
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h2 className="font-bold text-gray-900 mb-4">
+              <h2 className="font-bold text-gray-900 mb-1">
                 Reseñas {reviews.length > 0 && <span className="text-gray-600 font-normal">({reviews.length})</span>}
               </h2>
+              {/* Obligatorio informar de cómo se tratan las reseñas (ley de consumidores) */}
+              <p className="text-xs text-gray-500 mb-4">
+                Las escriben usuarios de VetEspaña. Revisamos cada reseña antes de publicarla para filtrar el spam
+                y el contenido ofensivo, pero no podemos comprobar que su autor haya sido cliente de la clínica.
+              </p>
 
               {reviews.length > 0 ? (
                 <div className="space-y-4">
@@ -368,7 +392,7 @@ export default async function ClinicaPage({ params }: Props) {
                     <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
                       <MapPin size={14} className="text-gray-400" />
                     </div>
-                    <span>{clinic.direccion}, {clinic.ciudad}</span>
+                    <span>{direccion}</span>
                   </div>
                 )}
 
@@ -449,7 +473,7 @@ export default async function ClinicaPage({ params }: Props) {
 
             {/* Mapa enlace Google Maps */}
             <a
-              href={`https://www.google.com/maps/search/${encodeURIComponent(clinic.nombre + ' ' + clinic.direccion + ' ' + clinic.ciudad)}`}
+              href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 w-full bg-white border border-gray-200 hover:border-teal-300 text-gray-700 font-medium py-2.5 px-4 rounded-xl transition-colors text-sm justify-center"

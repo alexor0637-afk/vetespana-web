@@ -6,6 +6,7 @@ import React from 'react'
 import { GUIAS, getGuia } from '@/data/guias'
 import GuiaHero from '@/components/GuiaHero'
 import { clinicasMasDe } from '@/lib/datos'
+import { jsonLdSeguro, metadatosPagina } from '@/lib/seo'
 
 const BASE = 'https://www.vetespana.es'
 
@@ -21,17 +22,13 @@ export async function generateMetadata({
   const { slug } = await params
   const guia = getGuia(slug)
   if (!guia) return {}
-  return {
+  return metadatosPagina({
     title: guia.metaTitulo,
     description: guia.descripcion,
-    alternates: { canonical: `${BASE}/guias/${guia.slug}` },
-    openGraph: {
-      type: 'article',
-      title: guia.metaTitulo,
-      description: guia.descripcion,
-      url: `${BASE}/guias/${guia.slug}`,
-    },
-  }
+    ruta: `/guias/${guia.slug}`,
+    imagen: { url: guia.heroImg, alt: guia.heroAlt },
+    tipo: 'article',
+  })
 }
 
 // Convierte enlaces markdown [texto](/ruta) en <Link> internos dentro de un párrafo.
@@ -96,7 +93,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
 
   return (
     <article className="max-w-3xl mx-auto px-4 py-10">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdSeguro(jsonLd) }} />
 
       <nav className="text-sm text-gray-500 mb-4">
         <Link href="/" className="hover:text-teal-600">Inicio</Link> <span className="mx-1">/</span>{' '}

@@ -1,4 +1,5 @@
 import { textoSeoLugar, buildCityFaq } from '@/lib/city-content'
+import { jsonLdSeguro } from '@/lib/seo'
 
 interface Props {
   lugarDisplay: string
@@ -24,13 +25,22 @@ export default function CitySeoContent({ lugarDisplay, total, count24h, topEsp, 
 
         {total > 0 && (
           <p>
-            De las <strong>{total}</strong> clínicas veterinarias en {lugarDisplay},{' '}
-            {count24h > 0 ? (
+            {total === 1 ? (
               <>
-                <strong>{count24h}</strong> ofrece{count24h !== 1 ? 'n' : ''} urgencias 24 horas.
+                La clínica veterinaria que tenemos en {lugarDisplay}{' '}
+                {count24h > 0 ? 'ofrece urgencias 24 horas.' : 'no tiene urgencias 24h listadas.'}
               </>
             ) : (
-              <>aún no tenemos ninguna con urgencias 24h listada.</>
+              <>
+                De las <strong>{total}</strong> clínicas veterinarias en {lugarDisplay},{' '}
+                {count24h > 0 ? (
+                  <>
+                    <strong>{count24h}</strong> ofrece{count24h !== 1 ? 'n' : ''} urgencias 24 horas.
+                  </>
+                ) : (
+                  <>aún no tenemos ninguna con urgencias 24h listada.</>
+                )}
+              </>
             )}
             {topEsp.length > 0 && <> Especialidades destacadas en la zona: {topEsp.join(', ')}.</>}
           </p>
@@ -55,7 +65,7 @@ export default function CitySeoContent({ lugarDisplay, total, count24h, topEsp, 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: jsonLdSeguro({
               '@context': 'https://schema.org',
               '@type': 'FAQPage',
               mainEntity: faq.map((item) => ({
