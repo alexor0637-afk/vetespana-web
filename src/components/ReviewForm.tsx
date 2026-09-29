@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Star } from 'lucide-react'
 import { URL_BUZON } from '@/lib/formulario-clinica'
 import { TITULAR } from '@/lib/legal'
@@ -22,12 +22,27 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
   const [comentario, setComentario] = useState('')
   const [website, setWebsite] = useState('') // honeypot anti-bots: debe quedar vacío
   const [estado, setEstado] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+  const [error, setError] = useState('')
+  const id = useId()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!puntuacion) return
+    // Se explica qué falta (antes el botón se quedaba gris sin decir por qué)
+    const falta = !puntuacion
+      ? 'Elige una puntuación de 1 a 5 estrellas.'
+      : !nombre.trim()
+        ? 'Escribe tu nombre.'
+        : comentario.trim().length < 10
+          ? 'El comentario debe tener al menos 10 caracteres.'
+          : ''
+    if (falta) {
+      setError(falta)
+      setEstado('error')
+      return
+    }
 
     setEstado('loading')
+    setError('')
     try {
       const res = await fetch(`${URL_BUZON}/resenas`, {
         method: 'POST',
@@ -36,10 +51,19 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
       })
       if (res.ok) {
         setEstado('ok')
-      } else {
-        setEstado('error')
+        return
       }
+      // El buzón explica el motivo (p. ej. demasiados envíos seguidos): se muestra tal cual
+      const cuerpo = (await res.json().catch(() => null)) as { error?: string } | null
+      setError(
+        cuerpo?.error ??
+          (res.status === 429
+            ? 'Has enviado varias reseñas seguidas. Inténtalo de nuevo dentro de un rato.'
+            : 'Ha ocurrido un error. Inténtalo de nuevo.'),
+      )
+      setEstado('error')
     } catch {
+      setError('No se ha podido enviar: revisa tu conexión e inténtalo de nuevo.')
       setEstado('error')
     }
   }
@@ -73,18 +97,19 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
       />
 
       {/* Selector de estrellas */}
-      <div>
-        <label className="text-sm text-gray-600 block mb-1.5">Puntuación *</label>
+      <fieldset>
+        <legend className="text-sm text-gray-600 block mb-1.5">Puntuación *</legend>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
               aria-label={`${n} estrella${n > 1 ? 's' : ''}`}
+              aria-pressed={puntuacion === n}
               onClick={() => setPuntuacion(n)}
               onMouseEnter={() => setHovered(n)}
               onMouseLeave={() => setHovered(0)}
-              className="focus:outline-none"
+              className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
             >
               <Star
                 size={28}
@@ -97,12 +122,13 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Nombre */}
       <div>
-        <label className="text-sm text-gray-600 block mb-1.5">Tu nombre *</label>
+        <label htmlFor={`${id}-nombre`} className="text-sm text-gray-600 block mb-1.5">Tu nombre *</label>
         <input
+          id={`${id}-nombre`}
           type="text"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
@@ -115,8 +141,9 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
 
       {/* Comentario */}
       <div>
-        <label className="text-sm text-gray-600 block mb-1.5">Comentario *</label>
+        <label htmlFor={`${id}-comentario`} className="text-sm text-gray-600 block mb-1.5">Comentario *</label>
         <textarea
+          id={`${id}-comentario`}
           value={comentario}
           onChange={(e) => setComentario(e.target.value)}
           placeholder="Cuéntanos tu experiencia con esta clínica..."
@@ -129,16 +156,16 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
         <p className="text-xs text-gray-600 mt-1 text-right">{comentario.length}/500</p>
       </div>
 
-      {estado === 'error' && (
-        <p className="text-sm text-red-500">Ha ocurrido un error. Inténtalo de nuevo.</p>
+      {estado === 'error' && error && (
+        <p role="alert" className="text-sm text-red-700">{error}</p>
       )}
 
       <button
         type="submit"
-        disabled={!puntuacion || !nombre || !comentario || estado === 'loading'}
-        className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+        disabled={estado === 'loading'}
+        className="w-full bg-teal-700 hover:bg-teal-800 disabled:bg-gray-200 disabled:text-gray-500 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
       >
-        {estado === 'loading' ? 'Enviando...' : 'Publicar reseña'}
+        {estado === 'loading' ? 'Enviando...' : 'Enviar reseña'}
       </button>
       <p className="text-xs text-gray-600 text-center">
         Las reseñas se revisan antes de publicarse. Tu nombre se mostrará junto a tu opinión.

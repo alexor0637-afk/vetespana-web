@@ -129,11 +129,34 @@ async function sha256(texto: string): Promise<string> {
   return [...hash].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
+// Tipo real de una foto en base64 por sus primeros bytes (JPEG, PNG o WebP)
+function tipoRealFoto(datosBase64: string): string | null {
+  let cabecera: string
+  try {
+    cabecera = atob(datosBase64.slice(0, 16))
+  } catch {
+    return null
+  }
+  if (cabecera.startsWith('\xFF\xD8\xFF')) return 'image/jpeg'
+  if (cabecera.startsWith('\x89PNG')) return 'image/png'
+  if (cabecera.startsWith('RIFF') && cabecera.slice(8, 12) === 'WEBP') return 'image/webp'
+  return null
+}
+
+// Quién envía, para el límite: la IP, o su red /64 si es IPv6 (cada conexión IPv6 tiene
+// millones de direcciones y cambiarla saltaría el límite)
+function origenEnvio(request: Request): string {
+  const ip = request.headers.get('cf-connecting-ip') ?? ''
+  return ip.includes(':') ? ip.split(':').slice(0, 4).join(':') : ip
+}
+
 // Límite de envíos por persona (IP resumida) y hora. Si el contador falla, no se
 // bloquea a nadie: todo pasa igualmente por la revisión del dueño.
+// La huella usa un secreto del Worker y cambia cada día: no se puede volver a la IP.
 async function limiteSuperado(env: Env, request: Request, tipo: string, maximo: number): Promise<boolean> {
   const hora = Math.floor(Date.now() / 3_600_000)
-  const huella = (await sha256(`${request.headers.get('cf-connecting-ip') ?? ''}|vetespana`)).slice(0, 16)
+  const dia = Math.floor(hora / 24)
+  const huella = (await sha256(`${origenEnvio(request)}|${env.AVISO_TOKEN ?? 'vetespana'}|${dia}`)).slice(0, 16)
   try {
     const fila = await env.BUZON.prepare(
       'INSERT INTO limites (clave, n) VALUES (?, 1) ON CONFLICT (clave) DO UPDATE SET n = n + 1 RETURNING n',
@@ -253,7 +276,10 @@ async function recibirFormulario(request: Request, env: Env, ctx: Contexto, tipo
       return json({ error: 'La foto no es válida' }, 400)
     }
     if (datos.length > MAX_FOTO_BASE64) return json({ error: 'La foto es demasiado grande' }, 413)
-    archivo = { tipo: tipoFoto, datos }
+    // El tipo lo declara el navegador: se comprueba que el archivo sea de verdad una imagen
+    const tipoReal = tipoRealFoto(datos)
+    if (!tipoReal) return json({ error: 'La foto no es válida' }, 400)
+    archivo = { tipo: tipoReal, datos }
   }
 
   let registro: Record<string, unknown>

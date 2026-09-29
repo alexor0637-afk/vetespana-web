@@ -35,15 +35,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
+  const clinicas = await getAllClinics()
+
+  // Fecha real de cada ciudad y comunidad: la última modificación de sus clínicas, o la
+  // del contenido general si es posterior (estable entre publicaciones, no «ahora»).
+  const ultimaPorCiudad = new Map<string, number>()
+  for (const c of clinicas) {
+    const t = c.actualizado ? new Date(c.actualizado).getTime() : 0
+    if (t > (ultimaPorCiudad.get(c.ciudad) ?? 0)) ultimaPorCiudad.set(c.ciudad, t)
+  }
+  const fecha = (ciudades: string[]) =>
+    new Date(Math.max(CONTENIDO_ACTUALIZADO.getTime(), ...ciudades.map((c) => ultimaPorCiudad.get(c) ?? 0)))
+
   // Una URL limpia por comunidad autónoma
   const comunidadPages: MetadataRoute.Sitemap = COMUNIDADES.map((comunidad) => ({
     url: `${baseUrl}/comunidades/${ciudadSlug(comunidad)}`,
-    lastModified: CONTENIDO_ACTUALIZADO,
+    lastModified: fecha(CIUDADES_POR_COMUNIDAD[comunidad]),
     changeFrequency: 'weekly' as const,
     priority: 0.75,
   }))
-
-  const clinicas = await getAllClinics()
 
   // Una URL por ciudad — el mayor activo de SEO local ("veterinario en {ciudad}").
   // Las ciudades sin clínicas quedan fuera: son páginas vacías (y llevan noindex).
@@ -53,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((ciudad) => ciudadesConClinicas.has(ciudad))
     .map((ciudad) => ({
       url: `${baseUrl}/veterinarios/${ciudadSlug(ciudad)}`,
-      lastModified: CONTENIDO_ACTUALIZADO,
+      lastModified: fecha([ciudad]),
       changeFrequency: 'weekly' as const,
       priority: 0.7,
     }))

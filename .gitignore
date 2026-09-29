@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Cloudflare (wrangler): estado local de `wrangler dev`
 .wrangler/
+
+# Registro de la última comprobación de la web generada (scripts/comprobar-salida.mjs)
+.ultima-comprobacion.json

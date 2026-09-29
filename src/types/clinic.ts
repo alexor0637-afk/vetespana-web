@@ -71,7 +71,7 @@ export const ESPECIALIDAD_EMOJI: Record<string, string> = {
   'Reptiles':          '🐢',
   'Aves':              '🦜',
   'Urgencias':         '🚨',
-  'Cirugía':           '🔪',
+  'Cirugía':           '🩺',
   'Dermatología':      '🧴',
   'Odontología':       '🦷',
   'Traumatología':     '🦴',
@@ -110,7 +110,7 @@ export const COMUNIDAD_EMOJI: Record<string, string> = {
   'Cantabria':            '🌊',
   'Castilla y León':      '🏰',
   'Castilla-La Mancha':   '🌾',
-  'Cataluña':             '🔴',
+  'Cataluña':             '⛰️',
   'Comunidad de Madrid':  '🏙️',
   'C. Valenciana':        '🍊',
   'Extremadura':          '🦅',
@@ -118,7 +118,7 @@ export const COMUNIDAD_EMOJI: Record<string, string> = {
   'Islas Baleares':       '⛵',
   'La Rioja':             '🍷',
   'Región de Murcia':     '☀️',
-  'Navarra':              '🏃',
+  'Navarra':              '🌲',
   'País Vasco':           '🐟',
 }
 
@@ -140,3 +140,7 @@ export const CIUDAD_DISPLAY: Record<string, string> = {
 // Nombre de la ciudad para mostrar («Logrono» → «Logroño»). El valor guardado se
 // sigue usando tal cual como clave en enlaces y filtros.
 export const nombreCiudad = (ciudad: string) => CIUDAD_DISPLAY[ciudad] ?? ciudad
+
+// Comunidad autónoma de una ciudad (clave de CIUDADES_POR_COMUNIDAD)
+export const comunidadDeCiudad = (ciudad: string) =>
+  Object.keys(CIUDADES_POR_COMUNIDAD).find((c) => CIUDADES_POR_COMUNIDAD[c].includes(ciudad))

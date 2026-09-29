@@ -33,9 +33,11 @@ export default function Header() {
         <div className="flex items-center gap-2 md:hidden">
           <Link
             href="/alta-clinica"
-            className="bg-teal-700 text-white px-3 py-1.5 rounded-full text-sm font-medium"
+            className="bg-teal-700 text-white px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap"
           >
-            Añade tu clínica
+            {/* En pantallas muy estrechas (≤ 360 px) el texto largo se partía en dos líneas */}
+            <span className="min-[361px]:hidden">Añadir clínica</span>
+            <span className="hidden min-[361px]:inline">Añade tu clínica</span>
           </Link>
           <MobileMenu />
         </div>

@@ -5,7 +5,7 @@ import { searchClinics } from '@/lib/datos'
 import { CIUDAD_DISPLAY } from '@/types/clinic'
 import { CIUDAD_POR_SLUG, ciudadSlug } from '@/lib/ciudad-slug'
 import { cityFacts, clinicasVeterinarias } from '@/lib/city-content'
-import { metadatosPagina } from '@/lib/seo'
+import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
 import ClinicGrid from '@/components/ClinicGrid'
 import SearchBar from '@/components/SearchBar'
 import CitySeoContent from '@/components/CitySeoContent'
@@ -98,11 +98,43 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
         </div>
       )}
 
+      {/* Todas las clínicas de la ciudad también como enlaces en el HTML: las que no caben
+          en la primera tanda solo salían con «Ver más» (JavaScript) y Google no las veía */}
+      {filtradas.length > PAGE && (
+        <nav aria-label={`Todas las clínicas veterinarias en ${display}`} className="mt-10">
+          <h2 className="text-base font-semibold text-gray-700 mb-3">Todas las clínicas veterinarias en {display}</h2>
+          <ul className="columns-1 sm:columns-2 lg:columns-3 gap-6 text-sm">
+            {filtradas.map((c) => (
+              <li key={c.id} className="mb-1.5 break-inside-avoid">
+                <Link href={`/clinicas/${c.slug}`} className="text-gray-600 hover:text-teal-600 hover:underline">
+                  {c.nombre}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
       <CitySeoContent
         lugarDisplay={display}
         total={filtradas.length}
         count24h={count24h}
         topEsp={topEsp}
+      />
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdSeguro({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { name: 'Inicio', item: SITIO },
+              { name: comunidad, item: SITIO + urlComunidad },
+              { name: `Veterinarios en ${display}`, item: `${SITIO}/veterinarios/${slug}` },
+            ].map((m, i) => ({ '@type': 'ListItem', position: i + 1, ...m })),
+          }),
+        }}
       />
     </div>
   )

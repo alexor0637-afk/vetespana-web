@@ -4,7 +4,7 @@ import Link from '@/components/Enlace'
 import { notFound } from 'next/navigation'
 import {
   MapPin, Phone, Globe, Mail, Clock, ShieldCheck,
-  Star, Zap, ArrowLeft, MessageCircle, Share2
+  Star, Zap, MessageCircle, Share2
 } from 'lucide-react'
 import { getAllClinicSlugs, getClinicBySlug, getReviewsByClinic } from '@/lib/datos'
 import { GUIAS } from '@/data/guias'
@@ -14,7 +14,9 @@ import BadgeBox from '@/components/BadgeBox'
 import AtribucionFoto from '@/components/AtribucionFoto'
 import { horarioSchema } from '@/lib/horario'
 import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
-import { nombreCiudad } from '@/types/clinic'
+import { comunidadDeCiudad, nombreCiudad } from '@/types/clinic'
+import { ciudadSlug } from '@/lib/ciudad-slug'
+import { searchClinics } from '@/lib/datos'
 
 // Web estática: se genera una ficha por clínica en el build (datos de Postgres).
 export const dynamicParams = false
@@ -29,6 +31,25 @@ function direccionConCiudad(direccion: string | null | undefined, ciudadClave: s
   if (!d) return ciudad
   const yaEsta = [ciudad, ciudadClave].some((c) => sinTildes(d).includes(sinTildes(c)))
   return yaEsta ? d : `${d}, ${ciudad}`
+}
+
+// Meta descripción: cortada en la última palabra entera (antes se cortaba a mitad)
+function recortar(texto: string, max = 155): string {
+  if (texto.length <= max) return texto
+  const corte = texto.slice(0, max - 1)
+  return corte.slice(0, corte.lastIndexOf(' ')).replace(/[\s,;:.—-]+$/, '') + '…'
+}
+
+// Enlace de redes sociales: «@usuario» no es una dirección (antes salía https://@usuario, roto)
+function urlRedSocial(valor: string): string | null {
+  const v = valor.trim()
+  if (v.startsWith('@')) return null
+  const url = v.startsWith('http') ? v : `https://${v}`
+  try {
+    return new URL(url).hostname.includes('.') ? url : null
+  } catch {
+    return null
+  }
 }
 
 // Sello «Estamos en VetEspaña» (BadgeBox): oculto por decisión del dueño (28/09/2026)
@@ -51,14 +72,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Descripción meta única: combina la descripción guardada + datos clave
   const ciudad = nombreCiudad(clinic.ciudad)
   const espDestacadas = clinic.especialidades.filter((e) => !['Perros', 'Gatos'].includes(e)).slice(0, 3)
-  const metaDesc = clinic.descripcion
-    ? clinic.descripcion.substring(0, 155)
-    : [
+  const metaDesc = recortar(
+    clinic.descripcion ||
+      [
         `${clinic.nombre} — veterinario en ${ciudad}.`,
         clinic.urgencias24h ? 'Urgencias 24h.' : '',
         espDestacadas.length ? `Especialidades: ${espDestacadas.join(', ')}.` : 'Consultas, vacunas y cirugía.',
         clinic.telefono ? `Tel: ${clinic.telefono}.` : '',
-      ].filter(Boolean).join(' ').substring(0, 155)
+      ].filter(Boolean).join(' '),
+  )
 
   const title = clinic.urgencias24h
     ? `${clinic.nombre} — Veterinario 24h en ${ciudad}`
@@ -135,7 +157,12 @@ export default async function ClinicaPage({ params }: Props) {
 
   // JSON-LD para SEO — VeterinaryCare con horario y descripción
   const ciudad = nombreCiudad(clinic.ciudad)
+  const comunidad = comunidadDeCiudad(clinic.ciudad)
+  const urlCiudad = `/veterinarios/${ciudadSlug(clinic.ciudad)}`
   const direccion = direccionConCiudad(clinic.direccion, clinic.ciudad)
+  const redSocial = clinic.redesSociales ? urlRedSocial(clinic.redesSociales) : null
+  // Otras clínicas de la misma ciudad (enlaces internos: ninguna ficha queda aislada)
+  const otras = (await searchClinics({ ciudad: clinic.ciudad })).filter((c) => c.id !== clinic.id).slice(0, 6)
   const openingHours = horarioSchema(clinic.horario)
   const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(clinic.nombre + ' ' + (clinic.direccion ?? '') + ' ' + ciudad)}`
 
@@ -148,20 +175,27 @@ export default async function ClinicaPage({ params }: Props) {
     : undefined
   const fichaUrl = `https://www.vetespana.es/clinicas/${slug}`
 
+  const sameAs = [webAbsoluta, redSocial].filter((u): u is string => Boolean(u))
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'VeterinaryCare',
+    '@id': `${fichaUrl}#clinica`,
     name: clinic.nombre,
     description: clinic.descripcion ?? undefined,
     address: {
       '@type': 'PostalAddress',
-      streetAddress: clinic.direccion,
+      streetAddress: clinic.direccion ?? undefined,
+      postalCode: clinic.direccion?.match(/\b\d{5}\b/)?.[0],
       addressLocality: ciudad,
+      addressRegion: comunidad,
       addressCountry: 'ES',
     },
-    telephone: clinic.telefono,
-    url: webAbsoluta ?? fichaUrl,
-    sameAs: webAbsoluta ? [fichaUrl] : undefined,
+    geo: clinic.lat != null && clinic.lng != null
+      ? { '@type': 'GeoCoordinates', latitude: clinic.lat, longitude: clinic.lng }
+      : undefined,
+    telephone: clinic.telefono || undefined,
+    url: fichaUrl,
+    sameAs: sameAs.length ? sameAs : undefined,
     image: clinic.fotoPortada ? SITIO + clinic.fotoPortada.url : undefined,
     openingHoursSpecification: openingHours.length ? openingHours : undefined,
     // Solo declaramos valoración a Google si hay reseñas REALES visibles en la
@@ -183,16 +217,37 @@ export default async function ClinicaPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdSeguro(jsonLd) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdSeguro({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { name: 'Inicio', item: SITIO },
+              ...(comunidad ? [{ name: comunidad, item: `${SITIO}/comunidades/${ciudadSlug(comunidad)}` }] : []),
+              { name: `Veterinarios en ${ciudad}`, item: SITIO + urlCiudad },
+              { name: clinic.nombre, item: fichaUrl },
+            ].map((m, i) => ({ '@type': 'ListItem', position: i + 1, ...m })),
+          }),
+        }}
+      />
 
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-          <Link href="/clinicas" className="hover:text-teal-600 flex items-center gap-1">
-            <ArrowLeft size={14} /> Clínicas
-          </Link>
+        {/* Migas: comunidad y ciudad (enlaces internos y, arriba, su BreadcrumbList) */}
+        <nav aria-label="Migas de pan" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500 mb-6">
+          <Link href="/clinicas" className="hover:text-teal-600">Clínicas</Link>
+          {comunidad && (
+            <>
+              <span>/</span>
+              <Link href={`/comunidades/${ciudadSlug(comunidad)}`} className="hover:text-teal-600">{comunidad}</Link>
+            </>
+          )}
+          <span>/</span>
+          <Link href={urlCiudad} className="hover:text-teal-600">{ciudad}</Link>
           <span>/</span>
           <span className="text-gray-700">{clinic.nombre}</span>
-        </div>
+        </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Columna principal */}
@@ -203,7 +258,7 @@ export default async function ClinicaPage({ params }: Props) {
                 <>
                   <Image
                     src={clinic.fotoPortada.url}
-                    alt={`Clínica veterinaria ${clinic.nombre}`}
+                    alt={`Foto de ${clinic.nombre}`}
                     fill
                     className="object-cover"
                     priority
@@ -369,6 +424,26 @@ export default async function ClinicaPage({ params }: Props) {
                 ))}
               </div>
             </div>
+
+            {/* Otras clínicas de la ciudad: alternativas para el usuario y enlaces internos */}
+            {otras.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <h2 className="font-bold text-gray-900 mb-3">Otras clínicas veterinarias en {ciudad}</h2>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {otras.map((c) => (
+                    <li key={c.id}>
+                      <Link href={`/clinicas/${c.slug}`} className="text-gray-700 hover:text-teal-600 hover:underline">
+                        {c.nombre}
+                      </Link>
+                      {c.urgencias24h && <span className="ml-1.5 text-xs font-semibold text-red-700">24h</span>}
+                    </li>
+                  ))}
+                </ul>
+                <Link href={urlCiudad} className="inline-block mt-3 text-sm font-medium text-teal-700 hover:underline">
+                  Ver todos los veterinarios en {ciudad} →
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Columna lateral — datos de contacto.
@@ -436,9 +511,9 @@ export default async function ClinicaPage({ params }: Props) {
                   </a>
                 )}
 
-                {clinic.redesSociales && (
+                {clinic.redesSociales && redSocial && (
                   <a
-                    href={clinic.redesSociales.startsWith('http') ? clinic.redesSociales : `https://${clinic.redesSociales}`}
+                    href={redSocial}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 text-gray-700 hover:text-teal-600 transition-colors group"
@@ -448,6 +523,15 @@ export default async function ClinicaPage({ params }: Props) {
                     </div>
                     <span className="truncate">{clinic.redesSociales.replace(/^https?:\/\//, '')}</span>
                   </a>
+                )}
+                {/* «@usuario» sin red concreta: se muestra, pero sin enlace */}
+                {clinic.redesSociales && !redSocial && (
+                  <div className="flex items-center gap-3 text-gray-700">
+                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center">
+                      <Share2 size={14} className="text-gray-400" />
+                    </div>
+                    <span className="truncate">{clinic.redesSociales}</span>
+                  </div>
                 )}
               </div>
 

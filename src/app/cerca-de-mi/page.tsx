@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from '@/components/Enlace'
 import NearbyClient from '@/components/NearbyClient'
 import { metadatosPagina } from '@/lib/seo'
 
@@ -33,9 +34,9 @@ export default function CercaDeMiPage() {
           punto de España, ordenadas de la más próxima a la más lejana.
         </p>
         <p>
-          También puedes explorar por <strong>comunidad autónoma, ciudad o especialidad</strong>
-          (urgencias 24h, animales exóticos, cirugía, dermatología y más) desde el buscador de
-          clínicas.
+          También puedes explorar por <strong>comunidad autónoma, ciudad o especialidad</strong>{' '}
+          (urgencias 24h, animales exóticos, cirugía, dermatología y más) desde el{' '}
+          <Link href="/clinicas" className="text-teal-700 underline">buscador de clínicas</Link>.
         </p>
         <p className="text-xs text-gray-400">
           Parte de las ubicaciones: ©{' '}

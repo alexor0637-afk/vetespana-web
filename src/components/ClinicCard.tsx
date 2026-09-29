@@ -53,7 +53,7 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
           <>
             <Image
               src={clinic.fotoPortada.url}
-              alt={`Clínica veterinaria ${clinic.nombre}`}
+              alt={`Foto de ${clinic.nombre}`}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -87,7 +87,7 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
         {/* Distancia (solo en "Cerca de mí") */}
         {distanciaKm !== undefined && (
           <span className="absolute bottom-3 right-3 bg-white/95 text-teal-700 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
-            <Navigation size={11} className="fill-teal-600" /> a {distanciaKm} km
+            <Navigation size={11} className="fill-teal-600" /> a {distanciaKm.toLocaleString('es-ES')} km
           </span>
         )}
       </div>
@@ -109,7 +109,11 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
         {/* Dirección */}
         <div className="flex items-start gap-1.5 text-gray-500 text-sm mb-1">
           <MapPin size={13} className="mt-0.5 shrink-0 text-teal-500" />
-          <span className="line-clamp-1">{clinic.direccion}</span>
+          {/* La ciudad delante: la dirección se corta a una línea y muchas no la incluyen */}
+          <span className="line-clamp-1">
+            <span className="font-medium text-gray-600">{nombreCiudad(clinic.ciudad)}</span>
+            {clinic.direccion && <> · {clinic.direccion.replace(/,?\s*(España|Spain)\s*$/i, '')}</>}
+          </span>
         </div>
 
         {/* Teléfono */}

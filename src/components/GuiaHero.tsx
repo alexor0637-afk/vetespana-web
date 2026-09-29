@@ -17,10 +17,10 @@ export default function GuiaHero({
   meta: string
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl h-60 md:h-80 mb-8">
+    <div className="relative overflow-hidden rounded-2xl h-60 md:h-80 mb-8 bg-teal-800">
       <Image src={img} alt={alt} fill priority sizes="(max-width: 768px) 100vw, 768px" className="object-cover" />
-      {/* Degradado para legibilidad del texto */}
-      <div className="absolute inset-0 bg-gradient-to-t from-teal-950/90 via-teal-900/45 to-teal-900/10" />
+      {/* Degradado para legibilidad del texto (más oscuro abajo, donde va el título) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-teal-950/95 via-teal-900/65 to-teal-900/15" />
       <div className="relative h-full flex flex-col justify-end p-6 md:p-8">
         <div className="mb-3 w-12 h-12 rounded-xl bg-white/20 ring-1 ring-white/30 backdrop-blur-sm flex items-center justify-center text-2xl">
           {emoji}

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import AltaClinica from '@/components/AltaClinica'
+import { clinicasMasDe } from '@/lib/datos'
 import { metadatosPagina } from '@/lib/seo'
 
 export const metadata: Metadata = metadatosPagina({
@@ -9,7 +10,8 @@ export const metadata: Metadata = metadatosPagina({
   ruta: '/alta-clinica',
 })
 
-export default function AltaClinicaPage() {
+export default async function AltaClinicaPage() {
+  const masDe = await clinicasMasDe()
   return (
     <div className="mx-auto max-w-3xl px-4 py-14">
       <div className="mb-10 text-center">
@@ -19,7 +21,7 @@ export default function AltaClinicaPage() {
         </p>
       </div>
 
-      <AltaClinica />
+      <AltaClinica masDe={masDe} />
 
       {/* Cómo funciona */}
       <div className="mt-10 rounded-2xl bg-gray-50 p-6">

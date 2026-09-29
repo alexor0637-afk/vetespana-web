@@ -13,7 +13,7 @@ const normalizar = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-
  * Página de alta: primero se busca si la clínica ya está (casi todas lo están) para
  * no duplicarla; si está, se piden cambios desde su ficha; si no, formulario de alta.
  */
-export default function AltaClinica() {
+export default function AltaClinica({ masDe }: { masDe: string }) {
   const [busqueda, setBusqueda] = useState('')
   const [clinicas, setClinicas] = useState<Clinic[] | null>(null)
   const [nueva, setNueva] = useState(false)
@@ -55,7 +55,7 @@ export default function AltaClinica() {
     <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-8">
       <h2 className="mb-1 text-xl font-bold text-gray-900">Primero, ¿ya aparece tu clínica?</h2>
       <p className="mb-4 text-sm text-gray-500">
-        Tenemos más de 2.300 clínicas. Si la tuya ya está, puedes actualizar sus datos en lugar de darla de alta otra vez.
+        Tenemos más de {masDe} clínicas. Si la tuya ya está, puedes actualizar sus datos en lugar de darla de alta otra vez.
       </p>
       <div className="relative">
         <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

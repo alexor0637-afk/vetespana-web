@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from '@/components/Enlace'
 import { clinicasMasDe, getFeaturedClinics } from '@/lib/datos'
 import ClinicCard from '@/components/ClinicCard'
@@ -5,6 +6,11 @@ import SearchBar from '@/components/SearchBar'
 import SpainMap from '@/components/SpainMap'
 import { GUIAS } from '@/data/guias'
 import { ArrowRight, ShieldCheck, Star, Zap } from 'lucide-react'
+
+// El resto de metadatos de la portada (título, descripción, redes) salen del layout
+export const metadata: Metadata = {
+  alternates: { canonical: 'https://www.vetespana.es' },
+}
 
 // Página estática: se genera en el build con los datos de Postgres.
 export default async function HomePage() {

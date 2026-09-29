@@ -42,9 +42,25 @@ if (fichas < MIN_CLINICAS) errores.push(`solo ${fichas} fichas de clínica (mín
 if (indice !== fichas) errores.push(`el índice tiene ${indice} clínicas y hay ${fichas} fichas`)
 if (urls < fichas) errores.push(`el sitemap tiene ${urls} URLs, menos que fichas (${fichas})`)
 
+// Comparación con la última comprobación buena: si de repente hay bastantes menos fichas,
+// seguramente algo ha fallado al leer la base (el mínimo fijo no lo detectaría).
+// El registro vive en la carpeta de trabajo (no se publica ni está en git).
+const REGISTRO = '.ultima-comprobacion.json'
+let anterior = null
+try {
+  anterior = JSON.parse(fs.readFileSync(REGISTRO, 'utf8'))
+} catch {
+  // primera vez: no hay con qué comparar
+}
+if (anterior?.fichas && fichas < anterior.fichas * 0.95) {
+  errores.push(`hay ${fichas} fichas y en la última publicación había ${anterior.fichas} (más de un 5 % menos). ` +
+    `Si es a propósito (se han borrado clínicas), borra data/web/${REGISTRO} en el servidor y vuelve a publicar`)
+}
+
 console.log(`Comprobación: ${fichas} fichas · índice ${indice} · sitemap ${urls} URLs · ${archivos} archivos`)
 if (errores.length) {
   console.error(`NO SE PUBLICA:\n  - ${errores.join('\n  - ')}`)
   process.exit(1)
 }
+fs.writeFileSync(REGISTRO, JSON.stringify({ fichas, fecha: new Date().toISOString() }))
 console.log('Comprobación: OK')
