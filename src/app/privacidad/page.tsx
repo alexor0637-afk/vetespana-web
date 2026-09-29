@@ -20,8 +20,8 @@ export default function PrivacidadPage() {
 
       <h2>Quién es el responsable</h2>
       <p>
-        {TITULAR.nombre} (NIF {TITULAR.nif}), titular de VetEspaña. Para cualquier cuestión sobre tus datos
-        puedes escribir a {correo}.
+        {TITULAR.nombre} (NIF {TITULAR.nif}), con domicilio en {TITULAR.domicilio}, titular de VetEspaña. Para
+        cualquier cuestión sobre tus datos puedes escribir a {correo}.
       </p>
 
       <h2>Qué datos tratamos y para qué</h2>

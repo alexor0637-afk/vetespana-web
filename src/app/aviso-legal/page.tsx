@@ -26,6 +26,7 @@ export default function AvisoLegalPage() {
       <ul className="list-disc pl-5 space-y-1">
         <li>Titular: {TITULAR.nombre}</li>
         <li>NIF: {TITULAR.nif}</li>
+        <li>Domicilio: {TITULAR.domicilio}</li>
         <li>Correo electrónico: {correo}</li>
       </ul>
 

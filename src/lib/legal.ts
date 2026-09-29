@@ -5,6 +5,7 @@
 export const TITULAR = {
   nombre: 'Alex Fernández Muñoz',
   nif: '47139375R',
+  domicilio: 'Av. Francesc Macià, 29, 08635 Sant Esteve Sesrovires (Barcelona)',
   email: 'hola@vetespana.es',
 }
 
