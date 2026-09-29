@@ -37,7 +37,7 @@ type FilaClinica = {
   lng: number | null
   actualizado: Date
   especialidades: string[]
-  fotos: { archivo: string; tipo: 'portada' | 'galeria'; ancho: number | null; alto: number | null }[]
+  fotos: { archivo: string; tipo: 'portada' | 'galeria'; ancho: number | null; alto: number | null; origen: string | null }[]
 }
 
 type FilaResena = {
@@ -61,6 +61,7 @@ const foto = (f: FilaClinica['fotos'][number]): ClinicPhoto => ({
   filename: f.archivo,
   width: f.ancho ?? undefined,
   height: f.alto ?? undefined,
+  deGoogle: f.origen === 'google_places', // las que suben las clínicas llevan origen 'subida'
 })
 
 async function cargar(): Promise<Datos> {
@@ -77,7 +78,7 @@ async function cargar(): Promise<Datos> {
              coalesce((SELECT array_agg(e.nombre ORDER BY e.id)
                          FROM clinica_especialidades ce JOIN especialidades e ON e.id = ce.especialidad_id
                         WHERE ce.clinica_id = c.id), '{}') AS especialidades,
-             coalesce((SELECT json_agg(json_build_object('archivo', f.archivo, 'tipo', f.tipo, 'ancho', f.ancho, 'alto', f.alto)
+             coalesce((SELECT json_agg(json_build_object('archivo', f.archivo, 'tipo', f.tipo, 'ancho', f.ancho, 'alto', f.alto, 'origen', f.origen)
                                   ORDER BY f.tipo, f.orden)
                          FROM fotos f WHERE f.clinica_id = c.id), '[]') AS fotos
       FROM clinicas c

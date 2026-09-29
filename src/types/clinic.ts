@@ -6,6 +6,8 @@ export interface ClinicPhoto {
   filename: string
   width?: number
   height?: number
+  /** Foto sacada de Google Maps (Google Places): se muestra con su atribución */
+  deGoogle?: boolean
 }
 
 export interface Clinic {

@@ -2,6 +2,7 @@ import Link from '@/components/Enlace'
 import { PawPrint } from 'lucide-react'
 import { COMUNIDADES, CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
+import { BotonCookies } from '@/components/Cookies'
 
 // Lista plana de todas las ciudades válidas (para no enlazar a páginas vacías)
 const TODAS_CIUDADES = new Set(Object.values(CIUDADES_POR_COMUNIDAD).flat())
@@ -84,8 +85,14 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 pt-6 text-sm text-center">
-          © {new Date().getFullYear()} VetEspaña · El directorio veterinario de confianza en España
+        <div className="border-t border-gray-800 pt-6 text-sm text-center space-y-3">
+          <nav aria-label="Información legal" className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+            <Link href="/aviso-legal" className="hover:text-white transition-colors">Aviso legal</Link>
+            <Link href="/privacidad" className="hover:text-white transition-colors">Privacidad</Link>
+            <Link href="/cookies" className="hover:text-white transition-colors">Cookies</Link>
+            <BotonCookies className="hover:text-white transition-colors" />
+          </nav>
+          <p>© {new Date().getFullYear()} VetEspaña · El directorio veterinario de confianza en España</p>
         </div>
       </div>
     </footer>

@@ -18,6 +18,7 @@ export type FilaIndice = [
 const URGENCIAS = 1
 const PREMIUM = 2
 const VERIFICADA = 4
+const FOTO_GOOGLE = 8 // la foto viene de Google Maps: se muestra con su atribución
 
 export function aIndice(clinicas: Clinic[]): FilaIndice[] {
   return clinicas.map((c) => [
@@ -29,7 +30,8 @@ export function aIndice(clinicas: Clinic[]): FilaIndice[] {
     c.telefono,
     (c.horario ?? '').split('\n')[0],
     c.especialidades.map((e) => ESPECIALIDADES.indexOf(e as (typeof ESPECIALIDADES)[number])).filter((i) => i >= 0),
-    (c.urgencias24h ? URGENCIAS : 0) | (c.plan === 'Premium' ? PREMIUM : 0) | (c.verificada ? VERIFICADA : 0),
+    (c.urgencias24h ? URGENCIAS : 0) | (c.plan === 'Premium' ? PREMIUM : 0) | (c.verificada ? VERIFICADA : 0) |
+      (c.fotoPortada?.deGoogle ? FOTO_GOOGLE : 0),
     c.valoracionMedia ?? 0,
     c.fotoPortada?.url ?? '',
     c.lat ?? null,
@@ -51,7 +53,7 @@ export function desdeIndice(filas: FilaIndice[]): Clinic[] {
     plan: marcas & PREMIUM ? 'Premium' : 'Gratis',
     verificada: (marcas & VERIFICADA) !== 0,
     valoracionMedia: valoracion || undefined,
-    fotoPortada: foto ? { id: foto, url: foto, filename: foto } : undefined,
+    fotoPortada: foto ? { id: foto, url: foto, filename: foto, deGoogle: (marcas & FOTO_GOOGLE) !== 0 } : undefined,
     galeriaFotos: [],
     lat: lat ?? undefined,
     lng: lng ?? undefined,

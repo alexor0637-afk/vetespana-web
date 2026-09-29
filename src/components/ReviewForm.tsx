@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Star } from 'lucide-react'
 import { URL_BUZON } from '@/lib/formulario-clinica'
+import { TITULAR } from '@/lib/legal'
 
 interface Props {
   clinicId: string
@@ -140,7 +141,12 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
         {estado === 'loading' ? 'Enviando...' : 'Publicar reseña'}
       </button>
       <p className="text-xs text-gray-600 text-center">
-        Las reseñas se revisan antes de publicarse.
+        Las reseñas se revisan antes de publicarse. Tu nombre se mostrará junto a tu opinión.
+      </p>
+      <p className="text-xs text-gray-500 text-center">
+        Responsable: {TITULAR.nombre}. Usamos estos datos solo para moderar y publicar tu reseña; puedes pedir que la
+        retiremos o ejercer tus derechos en {TITULAR.email}. Más información en la{' '}
+        <a href="/privacidad" target="_blank" rel="noopener" className="text-teal-700 underline">política de privacidad</a>.
       </p>
     </form>
   )

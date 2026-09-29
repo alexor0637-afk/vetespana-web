@@ -11,6 +11,7 @@ import { GUIAS } from '@/data/guias'
 import ReviewForm from '@/components/ReviewForm'
 import SolicitarCambios from '@/components/SolicitarCambios'
 import BadgeBox from '@/components/BadgeBox'
+import AtribucionFoto from '@/components/AtribucionFoto'
 import { horarioSchema } from '@/lib/horario'
 import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
 import { nombreCiudad } from '@/types/clinic'
@@ -199,14 +200,17 @@ export default async function ClinicaPage({ params }: Props) {
             {/* Foto portada */}
             <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden">
               {clinic.fotoPortada ? (
-                <Image
-                  src={clinic.fotoPortada.url}
-                  alt={`Clínica veterinaria ${clinic.nombre}`}
-                  fill
-                  className="object-cover"
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 66vw"
-                />
+                <>
+                  <Image
+                    src={clinic.fotoPortada.url}
+                    alt={`Clínica veterinaria ${clinic.nombre}`}
+                    fill
+                    className="object-cover"
+                    priority
+                    sizes="(max-width: 1024px) 100vw, 66vw"
+                  />
+                  {clinic.fotoPortada.deGoogle && <AtribucionFoto grande />}
+                </>
               ) : (
                 <PagePlaceholder nombre={clinic.nombre} ciudad={ciudad} />
               )}
@@ -308,6 +312,7 @@ export default async function ClinicaPage({ params }: Props) {
                         className="object-cover hover:scale-105 transition-transform duration-300"
                         sizes="200px"
                       />
+                      {foto.deGoogle && <AtribucionFoto />}
                     </div>
                   ))}
                 </div>

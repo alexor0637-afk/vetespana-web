@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { MapPin, Phone, Clock, Star, ShieldCheck, Zap, Navigation } from 'lucide-react'
 import type { Clinic } from '@/types/clinic'
 import { nombreCiudad } from '@/types/clinic'
+import AtribucionFoto from '@/components/AtribucionFoto'
 
 interface Props {
   clinic: Clinic
@@ -49,14 +50,17 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
       {/* Imagen portada */}
       <div className="relative h-44 bg-gray-100">
         {clinic.fotoPortada ? (
-          <Image
-            src={clinic.fotoPortada.url}
-            alt={`Clínica veterinaria ${clinic.nombre}`}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={priority}
-          />
+          <>
+            <Image
+              src={clinic.fotoPortada.url}
+              alt={`Clínica veterinaria ${clinic.nombre}`}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              priority={priority}
+            />
+            {clinic.fotoPortada.deGoogle && <AtribucionFoto />}
+          </>
         ) : (
           <ClinicPlaceholder nombre={clinic.nombre} ciudad={nombreCiudad(clinic.ciudad)} />
         )}

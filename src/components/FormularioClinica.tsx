@@ -5,6 +5,7 @@ import { CheckCircle2, ImagePlus, Loader2, Trash2 } from 'lucide-react'
 import CitySelect from '@/components/CitySelect'
 import HorarioEditor from '@/components/HorarioEditor'
 import { ESPECIALIDADES, ESPECIALIDAD_EMOJI } from '@/types/clinic'
+import { TITULAR } from '@/lib/legal'
 import { URL_BUZON, horarioATexto, horarioTipico, reducirFoto, textoAHorario } from '@/lib/formulario-clinica'
 
 /** Lo que el formulario necesita de una clínica existente (modo edición) */
@@ -400,7 +401,9 @@ export default function FormularioClinica({ modo, clinica }: Props) {
         <input type="checkbox" checked={acepta} onChange={(e) => setAcepta(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-600" />
         <span>
           Acepto que VetEspaña use estos datos para {modo === 'alta' ? 'publicar la clínica' : 'actualizar la ficha'} y para contactarme sobre
-          ella. Puedes pedir que los borremos escribiendo a hola@vetespana.es.
+          ella. Los datos de la clínica se publicarán en su ficha; mis datos de contacto, no. Responsable: {TITULAR.nombre}.
+          Puedo pedir que se borren o ejercer mis derechos en {TITULAR.email} (
+          <a href="/privacidad" target="_blank" rel="noopener" className="text-teal-700 underline">política de privacidad</a>).
         </span>
       </label>
 
