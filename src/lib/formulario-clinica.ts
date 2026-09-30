@@ -28,6 +28,43 @@ export function horarioTipico(): DiaHorario[] {
 
 const sinCeroDelante = (hora: string) => hora.replace(/^0(\d)/, '$1')
 
+const minutos = (hora: string) => {
+  const [h, m] = hora.split(':').map(Number)
+  return h * 60 + m
+}
+
+/** Qué falla en el horario (un tramo al revés o dos que se pisan), o '' si está bien */
+export function problemaHorario(dias: DiaHorario[]): string {
+  for (const [i, d] of dias.entries()) {
+    if (d.modo !== 'abierto') continue
+    const tramos = d.tramos
+      .filter(([a, b]) => a && b)
+      .map(([a, b]) => [minutos(a), minutos(b)] as const)
+      .sort((x, y) => x[0] - y[0])
+    for (const [k, [apertura, cierre]] of tramos.entries()) {
+      if (cierre <= apertura) {
+        return `Revisa el ${DIAS[i]}: la hora de cierre tiene que ser posterior a la de apertura (si abrís de noche, elige «24 horas» o parte el horario en dos tramos).`
+      }
+      if (k > 0 && apertura < tramos[k - 1][1]) return `Revisa el ${DIAS[i]}: hay dos tramos que se solapan.`
+    }
+  }
+  return ''
+}
+
+/** Web: con o sin https://, con un dominio de verdad */
+export function webValida(v: string): boolean {
+  if (/\s/.test(v)) return false
+  try {
+    const url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`)
+    return (url.protocol === 'https:' || url.protocol === 'http:') && /\.[a-z]{2,}$/i.test(url.hostname)
+  } catch {
+    return false
+  }
+}
+
+/** Redes: un enlace o un usuario tipo @clinica */
+export const redesValidas = (v: string) => /^@[\w.]{2,40}$/.test(v) || webValida(v)
+
 /** Al formato que ya usa la base: "lunes: 9:30–14:00, 16:30–20:00" · "domingo: Cerrado" */
 export function horarioATexto(dias: DiaHorario[]): string {
   return dias

@@ -31,12 +31,13 @@ for (const a of altas) {
     'SELECT id, slug FROM ciudades WHERE slug = $1 OR lower(nombre) = lower($2) LIMIT 1',
     [slugify(a.ciudad ?? ''), (a.ciudad ?? '').trim()])
   if (!ciudad) {
-    await anotar(`No publicada: la ciudad "${a.ciudad ?? ''}" no está en la tabla ciudades. Corrige el campo ciudad y guarda (sigue aprobada).`)
+    await anotar(`No publicada: la ciudad "${a.ciudad ?? ''}" no está en la tabla ciudades. Corrige el campo ciudad, o crea la ciudad en NocoDB (tabla ciudades: nombre, slug y comunidad; la web la añade sola) o pídeselo a Claude, y guarda (sigue aprobada).`)
     continue
   }
 
   // Slug único: el nombre; si ya existe, con la ciudad; si aún choca, -2, -3…
-  const base = slugify(nombre) || 'clinica'
+  // (sin guiones repetidos ni en los extremos: «Alzivet - Alzira» → alzivet-alzira)
+  const base = slugify(nombre).replace(/-+/g, '-').replace(/^-|-$/g, '') || 'clinica'
   const libre = async (s) => (await db.query('SELECT 1 FROM clinicas WHERE slug = $1', [s])).rowCount === 0
   let slug = base
   if (!(await libre(slug))) {

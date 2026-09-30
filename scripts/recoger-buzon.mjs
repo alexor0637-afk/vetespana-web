@@ -5,8 +5,12 @@
 //                          las antiguas, de Tally
 //   cambios de un dueño  → tabla ediciones (estado = pendiente), con el resumen
 //                          «campo: antes → ahora» comparado con la clínica actual
+// En la columna «aviso» se apunta lo que conviene mirar antes de aprobar: reseñas
+// repetidas (misma huella de dispositivo o mismo nombre), altas que parecen una clínica
+// que ya está en la web, y cambios delicados (teléfono, web…) que hay que confirmar.
 // Las fotos (tabla archivos de D1, o enlaces de Tally) se guardan ya en data/fotos/.
-// Cada envío se borra de D1 solo cuando ya está guardado en Postgres.
+// Cada envío se borra de D1 solo cuando ya está guardado en Postgres; si el borrado
+// fallara, la siguiente vuelta no lo duplica (buzon_id único + ON CONFLICT DO NOTHING).
 //
 // Se ejecuta cada 10 minutos (contenedor de ~/homelab/vetespana-web):
 //   node scripts/recoger-buzon.mjs
@@ -71,14 +75,42 @@ function motivoWrangler(e) {
 }
 
 const texto = (v) => (v === null || v === undefined || String(v).trim() === '' ? null : String(v).trim())
+const avisos = (lista) => (lista.filter(Boolean).length ? lista.filter(Boolean).join('\n') : null)
+// Últimas 9 cifras de un teléfono (sin prefijo +34 ni espacios)
+const cifras9 = (tel) => String(tel ?? '').replace(/\D/g, '').slice(-9)
+// Dominio de una web o de un email, sin www
+function dominio(v) {
+  const t = texto(v)
+  if (!t) return null
+  try {
+    const host = t.includes('@') && !t.includes('/') ? t.split('@').pop() : new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`).hostname
+    return host.toLowerCase().replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
+const CORREO_GRATIS = /^(gmail|googlemail|hotmail|outlook|live|yahoo|icloud|me|msn|aol|proton(mail)?|gmx|telefonica|movistar)\./
+
+// El formulario manda el id y el slug de la clínica: si no casan, el email de aviso
+// (que usa el nombre y el enlace del formulario) puede señalar otra clínica
+async function avisoSlug(clinicaId, slug) {
+  const { rows: [c] } = await db.query('SELECT nombre, slug FROM clinicas WHERE id = $1::bigint', [clinicaId])
+  if (!c || !slug || c.slug === slug) return null
+  return `OJO: el formulario decía /clinicas/${slug}, pero esto es para «${c.nombre}» (/clinicas/${c.slug}). Revisa a qué clínica corresponde.`
+}
 
 // ── Fotos ────────────────────────────────────────────────────────────────────
 const EXTENSIONES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
 
-// Foto subida con el formulario de la web (guardada en la tabla archivos de D1)
-async function guardarFotoDelBuzon(filaId, prefijo) {
-  const [archivo] = await d1('SELECT tipo, datos FROM archivos WHERE buzon_id = ? ORDER BY id LIMIT 1', [filaId])
-  if (!archivo) return null
+// Foto subida con el formulario de la web (guardada en la tabla archivos de D1). El buzón
+// guarda el envío y la foto a la vez; si aun así no está, se espera a la siguiente vuelta
+// (salvo que el envío sea de hace más de una hora: entonces se recoge sin foto).
+async function guardarFotoDelBuzon(fila, prefijo) {
+  const [archivo] = await d1('SELECT tipo, datos FROM archivos WHERE buzon_id = ? ORDER BY id LIMIT 1', [fila.id])
+  if (!archivo) {
+    if (Date.now() - Date.parse(fila.recibido) < 3_600_000) throw new Error('la foto aún no está en el buzón')
+    return null
+  }
   const nombre = `${prefijo}.${EXTENSIONES[archivo.tipo] ?? 'jpg'}`
   fs.writeFileSync(path.join(CARPETA_FOTOS, nombre), Buffer.from(archivo.datos, 'base64'))
   return nombre
@@ -199,7 +231,65 @@ function resumirCambios(actual, cambios, foto) {
     lineas.push(`Urgencias 24 h: ${actual.urgencias_24h ? 'Sí' : 'No'} → ${cambios.urgencias24h ? 'Sí' : 'No'}`)
   }
   if (foto) lineas.push(`Foto de portada nueva: ${foto}`)
+  if (cambios.retirar === true) lineas.push('RETIRAR LA FICHA de la web (al aprobarla se oculta: clinicas.oculta)')
   return lineas.length ? lineas.join('\n') : '(sin cambios en los datos)'
+}
+
+// Qué hay que confirmar antes de aprobar unos cambios (cualquiera puede pedirlos)
+function avisoEdicion(actual, cambios, contactoEmail) {
+  const delicados = ['nombre', 'telefono', 'whatsapp', 'email', 'web']
+    .filter((campo) => campo in cambios && texto(cambios[campo]) !== texto(actual[COLUMNAS[campo][0]]))
+    .map((campo) => COLUMNAS[campo][1].toLowerCase())
+  const lista = []
+  if (cambios.retirar === true || delicados.length) {
+    const que = [...(cambios.retirar === true ? ['piden RETIRAR la ficha'] : []), ...(delicados.length ? [`cambia ${delicados.join(', ')}`] : [])]
+    lista.push(`Confírmalo ANTES de aprobar (${que.join(' y ')}): llama al teléfono actual de la clínica, ${actual.telefono ?? '(no tiene)'}, o escribe a su email de siempre${actual.email ? ` (${actual.email})` : ''}.`)
+  }
+  const dEmail = dominio(contactoEmail)
+  const dWeb = dominio(actual.web)
+  if (dEmail && dWeb && dEmail !== dWeb) {
+    lista.push(`El email de quien lo pide (${contactoEmail}) no es del dominio de la web de la clínica (${dWeb})${CORREO_GRATIS.test(dEmail) ? ': es un correo gratuito' : ''}.`)
+  }
+  return avisos(lista)
+}
+
+// ¿El alta parece una clínica que ya está en la web? (mismo teléfono o mismo nombre en la ciudad)
+async function avisoAlta(c) {
+  const tel = cifras9(c.telefono)
+  const { rows } = await db.query(
+    `SELECT c.nombre, c.slug, ci.nombre AS ciudad,
+            (length($1) = 9 AND (right(regexp_replace(coalesce(c.telefono, ''), '\\D', '', 'g'), 9) = $1
+                              OR right(regexp_replace(coalesce(c.whatsapp, ''), '\\D', '', 'g'), 9) = $1)) AS mismo_tel
+       FROM clinicas c JOIN ciudades ci ON ci.id = c.ciudad_id
+      WHERE (length($1) = 9 AND (right(regexp_replace(coalesce(c.telefono, ''), '\\D', '', 'g'), 9) = $1
+                              OR right(regexp_replace(coalesce(c.whatsapp, ''), '\\D', '', 'g'), 9) = $1))
+         OR (lower(c.nombre) = lower($2) AND (lower(ci.nombre) = lower($3) OR ci.slug = $4))
+      LIMIT 3`,
+    [tel, texto(c.nombre) ?? '', texto(c.ciudad) ?? texto(c.ciudadOtra) ?? '', slugify(texto(c.ciudad) ?? texto(c.ciudadOtra) ?? '')])
+  return avisos(rows.map((r) =>
+    `Posible duplicado de «${r.nombre}» (${r.ciudad}), https://www.vetespana.es/clinicas/${r.slug} (${r.mismo_tel ? 'mismo teléfono' : 'mismo nombre'}). Si es la misma, descártala y, si hace falta, pide los cambios desde su ficha.`))
+}
+
+// ¿Reseña repetida? (mismo dispositivo o mismo nombre para esa clínica, o muchas del mismo dispositivo)
+async function avisoResena(clinicaId, huella, nombre) {
+  const lista = []
+  if (huella) {
+    const { rows: [h] } = await db.query(
+      `SELECT count(*) FILTER (WHERE clinica_id = $1::bigint)::int AS misma,
+              count(*) FILTER (WHERE clinica_id <> $1::bigint AND fecha > current_date - 30)::int AS otras
+         FROM resenas WHERE huella = $2`, [clinicaId, huella])
+    if (h.misma) lista.push(`Repetida: ya hay ${h.misma === 1 ? 'otra reseña' : `${h.misma} reseñas`} de este mismo dispositivo para esta clínica.`)
+    if (h.otras >= 2) lista.push(`Este dispositivo ha enviado ${h.otras} reseñas a otras clínicas en el último mes.`)
+  }
+  const { rows: [n] } = await db.query(
+    'SELECT count(*)::int AS n FROM resenas WHERE clinica_id = $1::bigint AND lower(trim(nombre_usuario)) = lower(trim($2))', [clinicaId, nombre ?? ''])
+  if (n.n) lista.push(`Ya hay ${n.n === 1 ? 'una reseña' : `${n.n} reseñas`} con el mismo nombre para esta clínica.`)
+  return avisos(lista)
+}
+
+// Igual que slugify() de publicar-altas.mjs (y ciudadSlug() de la web)
+function slugify(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
 }
 
 // ── Recogida ─────────────────────────────────────────────────────────────────
@@ -222,26 +312,31 @@ for (const fila of filas) {
   try {
     const datos = JSON.parse(fila.datos)
     if (fila.tipo === 'resena') {
+      const aviso = avisos([await avisoSlug(datos.clinicaId, datos.slug), await avisoResena(datos.clinicaId, datos.huella, datos.nombreUsuario)])
       const r = await db.query(
-        `INSERT INTO resenas (clinica_id, nombre_usuario, puntuacion, comentario, fecha, aprobada)
-         SELECT id, $2, $3, $4, $5::date, false FROM clinicas WHERE id = $1::bigint`,
-        [datos.clinicaId, datos.nombreUsuario, datos.puntuacion, datos.comentario, fila.recibido.slice(0, 10)])
+        `INSERT INTO resenas (clinica_id, nombre_usuario, puntuacion, comentario, fecha, aprobada, buzon_id, huella, aviso)
+         SELECT id, $2, $3, $4, $5::date, false, $6, $7, $8 FROM clinicas WHERE id = $1::bigint
+         ON CONFLICT (buzon_id) DO NOTHING`,
+        [datos.clinicaId, datos.nombreUsuario, datos.puntuacion, datos.comentario, fila.recibido.slice(0, 10),
+         fila.id, texto(datos.huella), aviso])
       if (r.rowCount) resenas++
-      else descartadas++ // la clínica ya no existe
+      else descartadas++ // la clínica ya no existe (o ya se había recogido)
     } else if (fila.tipo === 'alta' && datos.origen === 'web') {
       const c = datos.clinica ?? {}
       const quien = datos.contacto ?? {}
-      const foto = datos.foto ? await guardarFotoDelBuzon(fila.id, `alta-${fila.id}-${Date.now()}`) : null
+      const foto = datos.foto ? await guardarFotoDelBuzon(fila, `alta-${fila.id}-${Date.now()}`) : null
       await db.query(
         `INSERT INTO altas (recibida, nombre, ciudad, direccion, telefono, email, web, whatsapp, redes_sociales,
                             especialidades, horario, urgencias_24h, descripcion, foto_archivo, datos,
-                            solicitante, cargo, contacto_email, contacto_telefono, mensaje)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+                            solicitante, cargo, contacto_email, contacto_telefono, mensaje, buzon_id, aviso)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+         ON CONFLICT (buzon_id) DO NOTHING`,
         [fila.recibido, texto(c.nombre), texto(c.ciudad) ?? texto(c.ciudadOtra), texto(c.direccion), texto(c.telefono),
          texto(c.email), texto(c.web), texto(c.whatsapp), texto(c.redes),
          Array.isArray(c.especialidades) && c.especialidades.length ? c.especialidades.join(', ') : null,
          texto(c.horario), c.urgencias24h === true, texto(c.descripcion), foto, datos,
-         texto(quien.nombre), texto(quien.cargo), texto(quien.email), texto(quien.telefono), texto(datos.mensaje)])
+         texto(quien.nombre), texto(quien.cargo), texto(quien.email), texto(quien.telefono), texto(datos.mensaje),
+         fila.id, await avisoAlta(c)])
       altas++
     } else if (fila.tipo === 'alta') {
       const c = extraerTally(datos)
@@ -270,13 +365,15 @@ for (const fila of filas) {
         descartadas++ // la clínica ya no existe
       } else {
         const quien = datos.contacto ?? {}
-        const foto = datos.foto ? await guardarFotoDelBuzon(fila.id, `edicion-${fila.id}-${Date.now()}`) : null
+        const foto = datos.foto ? await guardarFotoDelBuzon(fila, `edicion-${fila.id}-${Date.now()}`) : null
+        const aviso = avisos([await avisoSlug(datos.clinicaId, datos.slug), avisoEdicion(actual, datos.cambios ?? {}, texto(quien.email))])
         await db.query(
           `INSERT INTO ediciones (recibida, clinica_id, cambios, solicitante, cargo, contacto_email, contacto_telefono,
-                                  mensaje, foto_archivo, datos)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                                  mensaje, foto_archivo, datos, buzon_id, aviso)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           ON CONFLICT (buzon_id) DO NOTHING`,
           [fila.recibido, actual.id, resumirCambios(actual, datos.cambios ?? {}, foto), texto(quien.nombre), texto(quien.cargo),
-           texto(quien.email), texto(quien.telefono), texto(datos.mensaje), foto, datos])
+           texto(quien.email), texto(quien.telefono), texto(datos.mensaje), foto, datos, fila.id, aviso])
         ediciones++
       }
     }

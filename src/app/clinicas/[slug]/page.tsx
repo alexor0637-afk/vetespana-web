@@ -14,7 +14,7 @@ import BadgeBox from '@/components/BadgeBox'
 import AtribucionFoto from '@/components/AtribucionFoto'
 import { horarioSchema } from '@/lib/horario'
 import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
-import { comunidadDeCiudad, nombreCiudad } from '@/types/clinic'
+import { comunidadDeCiudad, nombreCiudad, nombreComunidad } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
 import { searchClinics } from '@/lib/datos'
 
@@ -82,13 +82,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ].filter(Boolean).join(' '),
   )
 
-  const title = clinic.urgencias24h
-    ? `${clinic.nombre} — Veterinario 24h en ${ciudad}`
-    : `${clinic.nombre} — Clínica veterinaria en ${ciudad}`
+  // Título corto (Google corta hacia los 60 caracteres y se perdía la ciudad):
+  // «Nombre (Ciudad)», y detrás lo que quepa: «· Urgencias 24h» o «· Veterinario», y
+  // « | VetEspaña». Sin las coletillas de Google en el nombre («… | Urgencias 24h»).
+  const nombre = clinic.nombre.split(' | ')[0].trim()
+  const sinTildes = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  let title = sinTildes(nombre).includes(sinTildes(ciudad)) ? nombre : `${nombre} (${ciudad})`
+  const extra = clinic.urgencias24h && !/24/.test(nombre) ? ' · Urgencias 24h' : /veterinari|\bvet/i.test(nombre) ? '' : ' · Veterinario'
+  if ((title + extra).length <= 60) title += extra
+  const conMarca = `${title} | VetEspaña`
 
   // Al compartirla: la foto de la clínica o, si no tiene, la imagen general de VetEspaña
   return metadatosPagina({
-    title,
+    title: conMarca.length <= 60 ? conMarca : title,
+    absoluto: true,
     description: metaDesc,
     ruta: `/clinicas/${slug}`,
     imagen: clinic.fotoPortada
@@ -187,7 +194,7 @@ export default async function ClinicaPage({ params }: Props) {
       streetAddress: clinic.direccion ?? undefined,
       postalCode: clinic.direccion?.match(/\b\d{5}\b/)?.[0],
       addressLocality: ciudad,
-      addressRegion: comunidad,
+      addressRegion: comunidad ? nombreComunidad(comunidad) : undefined,
       addressCountry: 'ES',
     },
     geo: clinic.lat != null && clinic.lng != null
@@ -225,7 +232,7 @@ export default async function ClinicaPage({ params }: Props) {
             '@type': 'BreadcrumbList',
             itemListElement: [
               { name: 'Inicio', item: SITIO },
-              ...(comunidad ? [{ name: comunidad, item: `${SITIO}/comunidades/${ciudadSlug(comunidad)}` }] : []),
+              ...(comunidad ? [{ name: nombreComunidad(comunidad), item: `${SITIO}/comunidades/${ciudadSlug(comunidad)}` }] : []),
               { name: `Veterinarios en ${ciudad}`, item: SITIO + urlCiudad },
               { name: clinic.nombre, item: fichaUrl },
             ].map((m, i) => ({ '@type': 'ListItem', position: i + 1, ...m })),
@@ -240,7 +247,7 @@ export default async function ClinicaPage({ params }: Props) {
           {comunidad && (
             <>
               <span>/</span>
-              <Link href={`/comunidades/${ciudadSlug(comunidad)}`} className="hover:text-teal-600">{comunidad}</Link>
+              <Link href={`/comunidades/${ciudadSlug(comunidad)}`} className="hover:text-teal-600">{nombreComunidad(comunidad)}</Link>
             </>
           )}
           <span>/</span>
@@ -344,6 +351,8 @@ export default async function ClinicaPage({ params }: Props) {
                     <Link
                       key={esp}
                       href={`/clinicas?especialidad=${encodeURIComponent(esp)}&ciudad=${encodeURIComponent(clinic.ciudad)}`}
+                      // Filtro del navegador (misma página para Google): que no gaste rastreo en miles de variantes
+                      rel="nofollow"
                       className="bg-teal-50 text-teal-700 hover:bg-teal-100 px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
                     >
                       {esp}

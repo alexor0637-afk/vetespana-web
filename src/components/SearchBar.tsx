@@ -17,17 +17,28 @@ export default function SearchBar({ initialCiudad = '', initialQuery = '' }: Pro
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
-    // Solo ciudad (sin texto libre) → URL limpia de ciudad directamente.
-    if (ciudad && !query) {
+    const texto = query.trim()
+    const enListado = window.location.pathname === '/clinicas'
+    // En /clinicas se conservan los demás filtros (urgencias 24h, especialidad, orden…)
+    const params = new URLSearchParams(enListado ? window.location.search : '')
+    params.delete('ciudad')
+    params.delete('q')
+    if (ciudad) {
+      params.set('ciudad', ciudad)
+      params.delete('comunidad') // la ciudad ya dice la comunidad
+    }
+    if (texto) params.set('q', texto)
+    // Solo ciudad (sin texto ni otros filtros) → URL limpia de ciudad directamente
+    if (ciudad && params.toString() === new URLSearchParams({ ciudad }).toString()) {
+      // Página completa a propósito: la web estática no publica los archivos con los que
+      // Next navega sin recargar (ver components/Enlace.tsx)
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign(`/veterinarios/${ciudadSlug(ciudad)}`)
       return
     }
-    const params = new URLSearchParams()
-    if (ciudad) params.set('ciudad', ciudad)
-    if (query) params.set('q', query)
     const url = params.toString() ? `/clinicas?${params.toString()}` : '/clinicas'
     // Ya en /clinicas: cambia solo la URL y el listado se filtra al instante
-    if (window.location.pathname === '/clinicas') window.history.pushState(null, '', url)
+    if (enListado) window.history.pushState(null, '', url)
     else window.location.assign(url)
   }
 

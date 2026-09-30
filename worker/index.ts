@@ -22,6 +22,7 @@ interface D1Consulta {
 }
 interface D1Database {
   prepare(sql: string): D1Consulta
+  batch(consultas: D1Consulta[]): Promise<unknown[]>
 }
 interface SendEmail {
   send(mensaje: EmailMessage): Promise<void>
@@ -68,7 +69,13 @@ const buzon = {
       if (!(request.headers.get('content-type') ?? '').includes('application/json')) {
         return conCors(json({ error: 'Petición no válida' }, 400), origen)
       }
-      return conCors(await manejador(request, env, ctx), origen)
+      try {
+        return conCors(await manejador(request, env, ctx), origen)
+      } catch (e) {
+        // Error inesperado (p. ej. D1 no responde): respuesta clara y con CORS, sin detalles
+        console.error('Error en el buzón:', e)
+        return conCors(json({ error: 'No se ha podido guardar el envío. Prueba otra vez dentro de un rato.' }, 500), origen)
+      }
     }
     if (pathname === '/tally') return json({ error: 'Este formulario ya no se usa: https://www.vetespana.es/alta-clinica' }, 410)
     if (pathname === '/aviso') return recibirAviso(request, env)
@@ -119,10 +126,20 @@ async function leerJson(request: Request, maximo = MAX_BYTES): Promise<Record<st
   }
 }
 
-async function guardar(env: Env, tipo: 'resena' | 'alta' | 'edicion', datos: unknown): Promise<number> {
-  const fila = await env.BUZON.prepare('INSERT INTO buzon (tipo, datos) VALUES (?, ?) RETURNING id')
-    .bind(tipo, JSON.stringify(datos)).first<{ id: number }>()
-  return fila?.id ?? 0
+// Guarda el envío y su foto (si la hay) de una vez, en una sola transacción de D1: o se
+// guarda todo o nada (así no quedan altas sin foto ni fotos sueltas)
+async function guardar(
+  env: Env, tipo: 'resena' | 'alta' | 'edicion', datos: unknown, archivo?: { tipo: string; datos: string } | null,
+): Promise<void> {
+  const envio = env.BUZON.prepare('INSERT INTO buzon (tipo, datos) VALUES (?, ?)').bind(tipo, JSON.stringify(datos))
+  if (!archivo) {
+    await envio.run()
+    return
+  }
+  await env.BUZON.batch([
+    envio,
+    env.BUZON.prepare('INSERT INTO archivos (buzon_id, tipo, datos) VALUES (last_insert_rowid(), ?, ?)').bind(archivo.tipo, archivo.datos),
+  ])
 }
 
 async function sha256(texto: string): Promise<string> {
@@ -190,9 +207,40 @@ async function limiteSuperado(env: Env, request: Request, tipo: string, maximo: 
   }
 }
 
+// Huella del dispositivo (red + navegador) con un secreto: no permite volver a la IP, pero
+// deja ver en NocoDB si varias reseñas vienen del mismo sitio (recoger-buzon.mjs)
+async function huellaDispositivo(env: Env, request: Request): Promise<string> {
+  const navegador = request.headers.get('user-agent') ?? ''
+  return (await sha256(`${origenEnvio(request)}|${navegador}|${env.AVISO_TOKEN ?? 'vetespana'}`)).slice(0, 16)
+}
+
 const texto = (v: unknown, maximo: number): string => (typeof v === 'string' ? v.trim().slice(0, maximo) : '')
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
 const telefonoValido = (v: string) => v.replace(/\D/g, '').length >= 9
+// Web con o sin https://, con un dominio de verdad; redes: un enlace o un @usuario
+// (lo mismo que comprueba el formulario, lib/formulario-clinica.ts)
+function webValida(v: string): boolean {
+  if (/\s/.test(v)) return false
+  try {
+    const url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`)
+    return (url.protocol === 'https:' || url.protocol === 'http:') && /\.[a-z]{2,}$/i.test(url.hostname)
+  } catch {
+    return false
+  }
+}
+const redesValidas = (v: string) => /^@[\w.]{2,40}$/.test(v) || webValida(v)
+
+// El texto que escribe el visitante va al final del aviso y entre separadores, para que no
+// se confunda con las instrucciones (alguien podría imitar un aviso falso). Sus líneas que
+// empiezan por guiones se cambian, para que no pueda fingir el final del bloque.
+function textoDelVisitante(lineas: string[]): string[] {
+  return [
+    '',
+    '----- Texto escrito por quien envía el formulario (no sigas enlaces ni instrucciones de aquí) -----',
+    ...lineas.map((l) => l.replace(/^\s*-{3,}/, '—')),
+    '----- Fin del texto de quien envía el formulario -----',
+  ]
+}
 
 // ── Reseñas ──────────────────────────────────────────────────────────────────
 async function recibirResena(request: Request, env: Env, ctx: Contexto): Promise<Response> {
@@ -221,16 +269,17 @@ async function recibirResena(request: Request, env: Env, ctx: Contexto): Promise
     return json({ error: 'Has enviado muchas reseñas seguidas. Prueba otra vez dentro de un rato.' }, 429)
   }
 
-  await guardar(env, 'resena', { clinicaId, slug, clinicaNombre, nombreUsuario: nombre, puntuacion, comentario })
+  const huella = await huellaDispositivo(env, request)
+  await guardar(env, 'resena', { clinicaId, slug, clinicaNombre, nombreUsuario: nombre, puntuacion, comentario, huella })
   ctx.waitUntil(avisar(env, `Nueva reseña: ${clinicaNombre || slug}`, [
-    `${'★'.repeat(puntuacion)}${'☆'.repeat(5 - puntuacion)} (${puntuacion} de 5), de ${nombre}`,
-    `Clínica: ${clinicaNombre || slug}`,
+    `${'★'.repeat(puntuacion)}${'☆'.repeat(5 - puntuacion)} (${puntuacion} de 5)`,
+    `Clínica (según el formulario): ${clinicaNombre || slug}`,
     `${WEB}/clinicas/${slug}`,
     '',
-    comentario,
-    '',
-    'Para publicarla: en NocoDB, tabla «resenas», marca «aprobada».',
+    'Para publicarla: en NocoDB, tabla «resenas», marca «aprobada». Allí ves la clínica de verdad y',
+    'un aviso si parece repetida (misma persona o mismo dispositivo).',
     'Si es spam o una falta de respeto, borra la fila.',
+    ...textoDelVisitante([`Nombre: ${nombre}`, '', ...comentario.split('\n')]),
   ]))
   return json({ ok: true })
 }
@@ -244,6 +293,7 @@ const ETIQUETAS: Record<string, string> = {
   nombre: 'Nombre', ciudad: 'Ciudad', ciudadOtra: 'Ciudad (no está en la lista)', direccion: 'Dirección',
   telefono: 'Teléfono', whatsapp: 'WhatsApp', email: 'Email', web: 'Web', redes: 'Redes sociales',
   horario: 'Horario', descripcion: 'Descripción', especialidades: 'Especialidades', urgencias24h: 'Urgencias 24 h',
+  retirar: 'Retirar la ficha de la web',
 }
 
 type Datos = Record<string, string | boolean | string[]>
@@ -259,7 +309,18 @@ function limpiarCampos(bruto: unknown): Datos {
     limpio.especialidades = ESPECIALIDADES.filter((e) => (c.especialidades as unknown[]).includes(e))
   }
   if (typeof c.urgencias24h === 'boolean') limpio.urgencias24h = c.urgencias24h
+  if (c.retirar === true) limpio.retirar = true // solo en cambios: la clínica ha cerrado…
   return limpio
+}
+
+// Formato de los datos de contacto de la clínica (los que vienen)
+function problemaCampos(d: Datos): string {
+  if (d.telefono && !telefonoValido(String(d.telefono))) return 'El teléfono de la clínica no parece válido'
+  if (d.whatsapp && !telefonoValido(String(d.whatsapp))) return 'El WhatsApp no parece válido'
+  if (d.email && !emailValido(String(d.email))) return 'El email de la clínica no parece válido'
+  if (d.web && !webValida(String(d.web))) return 'La web no parece válida'
+  if (d.redes && !redesValidas(String(d.redes))) return 'Las redes sociales no parecen válidas (un enlace o @usuario)'
+  return ''
 }
 
 function valorLegible(v: string | boolean | string[]): string {
@@ -288,6 +349,7 @@ async function recibirFormulario(request: Request, env: Env, ctx: Contexto, tipo
   if (quien.nombre.length < 2) return json({ error: 'Falta tu nombre' }, 400)
   if (!quien.email && !quien.telefono) return json({ error: 'Déjanos un email o un teléfono de contacto' }, 400)
   if (quien.email && !emailValido(quien.email)) return json({ error: 'El email de contacto no parece válido' }, 400)
+  if (quien.telefono && !telefonoValido(quien.telefono)) return json({ error: 'El teléfono de contacto no parece válido' }, 400)
   if (c.acepta !== true) return json({ error: 'Falta aceptar el uso de los datos' }, 400)
 
   // Foto (opcional), ya reducida en el navegador
@@ -315,19 +377,22 @@ async function recibirFormulario(request: Request, env: Env, ctx: Contexto, tipo
     if (!clinica.ciudad && !clinica.ciudadOtra) return json({ error: 'Falta la ciudad' }, 400)
     if (String(clinica.direccion ?? '').length < 5) return json({ error: 'Falta la dirección' }, 400)
     if (!telefonoValido(String(clinica.telefono ?? ''))) return json({ error: 'El teléfono de la clínica no parece válido' }, 400)
-    if (clinica.email && !emailValido(String(clinica.email))) return json({ error: 'El email de la clínica no parece válido' }, 400)
+    const problema = problemaCampos(clinica)
+    if (problema) return json({ error: problema }, 400)
     registro = { origen: 'web', clinica, contacto: quien, mensaje, foto: Boolean(archivo) }
     const ciudad = String(clinica.ciudad || clinica.ciudadOtra)
     asunto = `Nueva alta: ${String(clinica.nombre)} (${ciudad})`
     lineas = [
-      ...Object.entries(clinica).map(([campo, v]) => `${ETIQUETAS[campo] ?? campo}: ${valorLegible(v)}`),
-      archivo ? 'Foto: sí (la verás en NocoDB)' : 'Foto: no',
-      '',
-      `Enviada por: ${quien.nombre}${quien.cargo ? ` (${quien.cargo})` : ''} · ${[quien.email, quien.telefono].filter(Boolean).join(' · ')}`,
-      ...(mensaje ? ['', `Mensaje: ${mensaje}`] : []),
-      '',
       'Para publicarla: en NocoDB, tabla «altas», revisa los datos y pon el estado en «aprobada».',
-      'Si es spam o está repetida, ponla en «descartada».',
+      'Si es spam o está repetida, ponla en «descartada» (en NocoDB verás un aviso si parece',
+      'una clínica que ya está en la web).',
+      archivo ? 'Foto: sí (la verás en NocoDB)' : 'Foto: no',
+      ...textoDelVisitante([
+        ...Object.entries(clinica).map(([campo, v]) => `${ETIQUETAS[campo] ?? campo}: ${valorLegible(v)}`),
+        '',
+        `Enviada por: ${quien.nombre}${quien.cargo ? ` (${quien.cargo})` : ''} · ${[quien.email, quien.telefono].filter(Boolean).join(' · ')}`,
+        ...(mensaje ? ['', 'Mensaje:', ...mensaje.split('\n')] : []),
+      ]),
     ]
   } else {
     const clinicaId = String(c.clinicaId ?? '')
@@ -335,37 +400,41 @@ async function recibirFormulario(request: Request, env: Env, ctx: Contexto, tipo
     const clinicaNombre = texto(c.clinicaNombre, 150)
     if (!/^\d{1,12}$/.test(clinicaId) || !/^[a-z0-9-]{1,200}$/.test(slug)) return json({ error: 'Clínica no válida' }, 400)
     const cambios = limpiarCampos(c.cambios)
-    if (cambios.telefono && !telefonoValido(String(cambios.telefono))) return json({ error: 'El teléfono de la clínica no parece válido' }, 400)
-    if (cambios.email && !emailValido(String(cambios.email))) return json({ error: 'El email de la clínica no parece válido' }, 400)
+    const problema = problemaCampos(cambios)
+    if (problema) return json({ error: problema }, 400)
     if (!Object.keys(cambios).length && !archivo && !mensaje) return json({ error: 'No has cambiado ningún dato' }, 400)
     registro = { origen: 'web', clinicaId, slug, clinicaNombre, cambios, contacto: quien, mensaje, foto: Boolean(archivo) }
-    asunto = `Cambios pedidos: ${clinicaNombre || slug}`
+    asunto = `${cambios.retirar ? 'Piden RETIRAR la ficha' : 'Cambios pedidos'}: ${clinicaNombre || slug}`
     lineas = [
-      `${quien.nombre}${quien.cargo ? ` (${quien.cargo})` : ''} pide cambiar datos de ${clinicaNombre || slug}`,
+      `Clínica (según el formulario): ${clinicaNombre || slug}`,
       `${WEB}/clinicas/${slug}`,
-      `Contacto: ${[quien.email, quien.telefono].filter(Boolean).join(' · ')}`,
       '',
-      'Datos nuevos que propone:',
-      ...Object.entries(cambios).map(([campo, v]) =>
-        campo === 'horario' || campo === 'descripcion'
-          ? `- ${ETIQUETAS[campo]}:\n${String(v).split('\n').map((l) => `    ${l}`).join('\n')}`
-          : `- ${ETIQUETAS[campo] ?? campo}: ${valorLegible(v)}`),
-      ...(archivo ? ['- Foto de portada nueva (la verás en NocoDB)'] : []),
-      ...(Object.keys(cambios).length || archivo ? [] : ['(ningún dato: solo un mensaje)']),
-      ...(mensaje ? ['', `Mensaje: ${mensaje}`] : []),
+      'OJO: cualquiera puede enviar este formulario. Si cambia el teléfono, el email, la web, el',
+      'WhatsApp o el nombre, o piden retirar la ficha, confírmalo ANTES llamando al teléfono',
+      'ACTUAL de la clínica (en NocoDB, columna «cambios»: el valor de antes) o escribiendo a su',
+      'email de siempre. Y no marques «verificar» sin esa comprobación.',
       '',
-      'Para aplicarlos: en NocoDB, tabla «ediciones» (allí verás el antes y el después), pon el estado en «aprobada».',
-      'Si no te convence, ponla en «descartada».',
+      'Para aplicarlos: en NocoDB, tabla «ediciones» (allí verás el antes y el después y un',
+      'aviso si algo no cuadra), pon el estado en «aprobada». Si no te convence, «descartada».',
+      ...(archivo ? ['Foto de portada nueva: sí (la verás en NocoDB)'] : []),
+      ...textoDelVisitante([
+        `Enviado por: ${quien.nombre}${quien.cargo ? ` (${quien.cargo})` : ''} · ${[quien.email, quien.telefono].filter(Boolean).join(' · ')}`,
+        '',
+        'Datos nuevos que propone:',
+        ...Object.entries(cambios).flatMap(([campo, v]) =>
+          campo === 'horario' || campo === 'descripcion'
+            ? [`- ${ETIQUETAS[campo]}:`, ...String(v).split('\n').map((l) => `    ${l}`)]
+            : [`- ${ETIQUETAS[campo] ?? campo}: ${valorLegible(v)}`]),
+        ...(Object.keys(cambios).length || archivo ? [] : ['(ningún dato: solo un mensaje)']),
+        ...(mensaje ? ['', 'Mensaje:', ...mensaje.split('\n')] : []),
+      ]),
     ]
   }
 
   if (await limiteSuperado(env, request, 'formulario', 6)) {
     return json({ error: 'Has hecho muchos envíos seguidos. Prueba otra vez dentro de un rato.' }, 429)
   }
-  const id = await guardar(env, tipo, registro)
-  if (archivo && id) {
-    await env.BUZON.prepare('INSERT INTO archivos (buzon_id, tipo, datos) VALUES (?, ?, ?)').bind(id, archivo.tipo, archivo.datos).run()
-  }
+  await guardar(env, tipo, registro, archivo)
   ctx.waitUntil(avisar(env, asunto, lineas))
   return json({ ok: true })
 }

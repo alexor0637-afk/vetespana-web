@@ -2,8 +2,9 @@ import Link from '@/components/Enlace'
 import Image from 'next/image'
 import { MapPin, Phone, Clock, Star, ShieldCheck, Zap, Navigation } from 'lucide-react'
 import type { Clinic } from '@/types/clinic'
-import { nombreCiudad } from '@/types/clinic'
+import { comunidadDeCiudad, nombreCiudad } from '@/types/clinic'
 import AtribucionFoto from '@/components/AtribucionFoto'
+import HorarioHoy from '@/components/HorarioHoy'
 
 interface Props {
   clinic: Clinic
@@ -39,11 +40,15 @@ function ClinicPlaceholder({ nombre, ciudad }: { nombre: string; ciudad: string 
 
 export default function ClinicCard({ clinic, distanciaKm, priority = false }: Props) {
   const isPremium = clinic.plan === 'Premium'
+  // «Urgencias» sin 24 h se confundía con la insignia «24h»: en la tarjeta no se enseña
+  const especialidades = clinic.especialidades.filter((e) => e !== 'Urgencias')
+  const tel = clinic.telefono?.replace(/[^\d+]/g, '')
 
+  // Toda la tarjeta lleva a la ficha (el enlace del nombre se estira por encima con
+  // after:inset-0); el botón de llamar va aparte, por encima de ese enlace.
   return (
-    <Link
-      href={`/clinicas/${clinic.slug}`}
-      className={`group block rounded-2xl overflow-hidden border bg-white hover:shadow-lg transition-all duration-200 ${
+    <article
+      className={`group relative rounded-2xl overflow-hidden border bg-white hover:shadow-lg transition-all duration-200 ${
         isPremium ? 'border-amber-300 shadow-amber-100 shadow-md' : 'border-gray-200'
       }`}
     >
@@ -78,7 +83,7 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
             </span>
           )}
           {clinic.urgencias24h && (
-            <span className="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1">
+            <span className="bg-red-600 text-white text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1">
               <Zap size={10} /> 24h
             </span>
           )}
@@ -94,8 +99,13 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
 
       {/* Contenido */}
       <div className="p-4">
-        <h3 className="font-bold text-gray-900 text-base leading-tight mb-1 group-hover:text-teal-600 transition-colors">
-          {clinic.nombre}
+        <h3 className="font-bold text-gray-900 text-base leading-tight mb-1 group-hover:text-teal-700 transition-colors">
+          <Link
+            href={`/clinicas/${clinic.slug}`}
+            className="after:absolute after:inset-0 after:z-[1] after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-teal-500"
+          >
+            {clinic.nombre}
+          </Link>
         </h3>
 
         {/* Valoración */}
@@ -116,11 +126,20 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
           </span>
         </div>
 
-        {/* Teléfono */}
+        {/* Teléfono: se puede llamar desde el listado */}
         {clinic.telefono && (
           <div className="flex items-center gap-1.5 text-gray-500 text-sm mb-1">
             <Phone size={13} className="shrink-0 text-teal-500" />
             <span>{clinic.telefono}</span>
+            {tel && tel.replace(/\D/g, '').length >= 9 && (
+              <a
+                href={`tel:${tel}`}
+                aria-label={`Llamar a ${clinic.nombre}`}
+                className="relative z-[2] ml-auto shrink-0 rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-50"
+              >
+                Llamar
+              </a>
+            )}
           </div>
         )}
 
@@ -128,14 +147,14 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
         {clinic.horario && (
           <div className="flex items-start gap-1.5 text-gray-500 text-sm mb-3">
             <Clock size={13} className="mt-0.5 shrink-0 text-teal-500" />
-            <span className="line-clamp-1">{clinic.horario}</span>
+            <HorarioHoy horario={clinic.horario} canarias={comunidadDeCiudad(clinic.ciudad) === 'Canarias'} />
           </div>
         )}
 
         {/* Especialidades */}
-        {clinic.especialidades.length > 0 && (
+        {especialidades.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {clinic.especialidades.slice(0, 3).map((esp) => (
+            {especialidades.slice(0, 3).map((esp) => (
               <span
                 key={esp}
                 className="text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full"
@@ -143,14 +162,14 @@ export default function ClinicCard({ clinic, distanciaKm, priority = false }: Pr
                 {esp}
               </span>
             ))}
-            {clinic.especialidades.length > 3 && (
-              <span className="text-xs text-gray-400">
-                +{clinic.especialidades.length - 3}
+            {especialidades.length > 3 && (
+              <span className="text-xs text-gray-500">
+                +{especialidades.length - 3}
               </span>
             )}
           </div>
         )}
       </div>
-    </Link>
+    </article>
   )
 }

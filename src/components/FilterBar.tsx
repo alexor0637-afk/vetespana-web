@@ -1,111 +1,146 @@
 'use client'
 
+import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   ESPECIALIDADES,
   ESPECIALIDAD_EMOJI,
-  CIUDADES_POR_COMUNIDAD,
-  CIUDAD_DISPLAY,
   COMUNIDADES,
   COMUNIDAD_EMOJI,
+  comunidadDeCiudad,
+  nombreCiudad,
+  nombreComunidad,
 } from '@/types/clinic'
-import { SlidersHorizontal, X, MapPin, Map, Stethoscope, ArrowUpDown } from 'lucide-react'
+import { paramsDesdeUrl } from '@/lib/search'
+import { SlidersHorizontal, X, Map, Stethoscope, ArrowUpDown, ChevronDown } from 'lucide-react'
 
-// Dada una ciudad, encuentra a qué comunidad pertenece
-function comunidadDeCiudad(ciudad: string): string {
-  for (const [com, ciudades] of Object.entries(CIUDADES_POR_COMUNIDAD)) {
-    if (ciudades.includes(ciudad)) return com
-  }
-  return ''
+// «Urgencias» no sale como especialidad: se confundía con las urgencias 24 h, que tienen
+// su propia casilla (solo aparece si ya viene en la URL, para poder quitarla)
+const ESPECIALIDADES_FILTRO = ESPECIALIDADES.filter((e) => e !== 'Urgencias')
+
+interface Valores {
+  ciudad: string
+  comunidad: string
+  especialidad: string
+  urgencias: boolean
+  orden: string
+  q: string
 }
+const SIN_FILTROS: Valores = { ciudad: '', comunidad: '', especialidad: '', urgencias: false, orden: 'relevancia', q: '' }
 
+/** Filtros de /clinicas. Viven en la URL: el listado (ClinicasExplorer) la lee y filtra. */
 export default function FilterBar() {
   const searchParams = useSearchParams()
-
-  const ciudad = searchParams.get('ciudad') ?? ''
-  const comunidadParam = searchParams.get('comunidad') ?? ''
-  const especialidad = searchParams.get('especialidad') ?? ''
-  const urgencias = searchParams.get('urgencias') === '1'
-  const orden = searchParams.get('orden') ?? 'relevancia'
-
-  // Comunidad efectiva: la del filtro, o la deducida de la ciudad elegida
-  const comunidad = comunidadParam || (ciudad ? comunidadDeCiudad(ciudad) : '')
-  const ciudadesDeComunidad = comunidad ? CIUDADES_POR_COMUNIDAD[comunidad] ?? [] : []
-
-  const hayFiltrosActivos = ciudad || comunidad || especialidad || urgencias
+  const p = paramsDesdeUrl(searchParams)
+  const valores: Valores = {
+    ciudad: p.ciudad ?? '',
+    // Comunidad efectiva: la de la ciudad elegida (manda sobre ?comunidad=) o la del filtro
+    comunidad: p.ciudad ? comunidadDeCiudad(p.ciudad) ?? '' : p.comunidad ?? '',
+    especialidad: p.especialidad ?? '',
+    urgencias: !!p.urgencias,
+    orden: p.orden ?? 'relevancia',
+    q: p.q?.trim() ?? '',
+  }
 
   // Solo cambia la URL: useSearchParams se entera y el listado se filtra en el
   // navegador al instante (web estática: no hay servidor al que pedir nada).
-  function push(params: URLSearchParams) {
+  function cambiar(editar: (params: URLSearchParams) => void) {
+    const params = new URLSearchParams(searchParams.toString())
+    editar(params)
     const qs = params.toString()
     window.history.pushState(null, '', qs ? `/clinicas?${qs}` : '/clinicas')
   }
+  const poner = (clave: string, valor: string | null) =>
+    cambiar((params) => (valor ? params.set(clave, valor) : params.delete(clave)))
 
-  // Al elegir comunidad: fija comunidad y resetea la ciudad
-  function setComunidad(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete('ciudad')
-    if (value) params.set('comunidad', value)
-    else params.delete('comunidad')
-    push(params)
-  }
+  return (
+    <Vista
+      valores={valores}
+      // Al elegir comunidad se quita la ciudad (la ciudad se elige en el buscador de arriba)
+      onComunidad={(v) => cambiar((params) => { params.delete('ciudad'); if (v) params.set('comunidad', v); else params.delete('comunidad') })}
+      onEspecialidad={(v) => poner('especialidad', v)}
+      onOrden={(v) => poner('orden', v === 'relevancia' ? null : v)}
+      onUrgencias={(v) => poner('urgencias', v ? '1' : null)}
+      onQuitarCiudad={() => poner('ciudad', null)}
+      onQuitarTexto={() => poner('q', null)}
+      onLimpiar={() => window.history.pushState(null, '', '/clinicas')}
+    />
+  )
+}
 
-  // Al elegir ciudad: fija ciudad y conserva su comunidad
-  function setCiudad(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value) {
-      params.set('ciudad', value)
-      const com = comunidadDeCiudad(value)
-      if (com) params.set('comunidad', com)
-    } else {
-      params.delete('ciudad')
-      // mantiene la comunidad efectiva como filtro al quitar la ciudad
-      if (comunidad) params.set('comunidad', comunidad)
-    }
-    push(params)
-  }
+/** Los mismos filtros, vacíos y quietos: ocupan lo mismo mientras carga la página (sin saltos) */
+export function FilterBarVacia() {
+  return <Vista valores={SIN_FILTROS} />
+}
 
-  function setSimple(key: string, value: string | null) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value === null || value === '') params.delete(key)
-    else params.set(key, value)
-    push(params)
-  }
+interface VistaProps {
+  valores: Valores
+  onComunidad?: (v: string) => void
+  onEspecialidad?: (v: string) => void
+  onOrden?: (v: string) => void
+  onUrgencias?: (v: boolean) => void
+  onQuitarCiudad?: () => void
+  onQuitarTexto?: () => void
+  onLimpiar?: () => void
+}
 
-  function limpiarFiltros() {
-    const params = new URLSearchParams()
-    const q = searchParams.get('q')
-    if (q) params.set('q', q)
-    push(params)
-  }
+function Vista({ valores, onComunidad, onEspecialidad, onOrden, onUrgencias, onQuitarCiudad, onQuitarTexto, onLimpiar }: VistaProps) {
+  // En el móvil los desplegables van plegados para que se vea el listado
+  const [abierto, setAbierto] = useState(false)
+  const { ciudad, comunidad, especialidad, urgencias, orden, q } = valores
+  const nPlegados = [comunidad && !ciudad, especialidad, orden !== 'relevancia'].filter(Boolean).length
+  const hayFiltrosActivos = ciudad || comunidad || especialidad || urgencias || q || orden !== 'relevancia'
 
   const selectBase =
-    'w-full appearance-none text-sm border border-gray-200 rounded-xl pl-9 pr-8 py-2.5 text-gray-700 bg-white cursor-pointer transition-shadow focus:outline-none focus:ring-2 focus:ring-teal-400 hover:border-teal-300 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed'
+    'w-full appearance-none text-sm border border-gray-200 rounded-xl pl-9 pr-8 py-2.5 text-gray-700 bg-white cursor-pointer transition-shadow focus:outline-none focus:ring-2 focus:ring-teal-400 hover:border-teal-300'
+  const etiqueta = 'block text-xs font-medium text-gray-500 mb-1 ml-1'
+  const icono = 'absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none'
+  const chip = 'inline-flex items-center gap-1.5 bg-teal-50 text-teal-700 border border-teal-200 text-xs font-medium px-3 py-1 rounded-full hover:bg-teal-100 transition-colors'
 
   return (
     <div className="space-y-3">
       <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-        <div className="flex items-center gap-2 text-gray-500 font-semibold text-sm mb-3">
-          <SlidersHorizontal size={15} className="text-teal-600" />
-          Filtros
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          {/* En el móvil, «Filtros» abre y cierra los desplegables */}
+          <button
+            type="button"
+            onClick={() => setAbierto((a) => !a)}
+            aria-expanded={abierto}
+            aria-controls="panel-filtros"
+            className="sm:hidden inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700"
+          >
+            <SlidersHorizontal size={15} className="text-teal-600" />
+            Filtros{nPlegados ? ` (${nPlegados})` : ''}
+            <ChevronDown size={15} className={`text-gray-400 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+          </button>
+          <div className="hidden sm:flex items-center gap-2 text-gray-500 font-semibold text-sm">
+            <SlidersHorizontal size={15} className="text-teal-600" />
+            Filtros
+          </div>
+
+          {/* Urgencias 24h: siempre a la vista, también en el móvil */}
+          <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700 select-none">
+            <input
+              type="checkbox"
+              checked={urgencias}
+              onChange={(e) => onUrgencias?.(e.target.checked)}
+              className="rounded accent-teal-600 w-4 h-4 cursor-pointer"
+            />
+            🚨 Solo urgencias 24h
+          </label>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div id="panel-filtros" className={`${abierto ? 'grid' : 'hidden'} sm:grid mt-3 grid-cols-1 sm:grid-cols-3 gap-3`}>
           {/* Comunidad autónoma */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1 ml-1">Comunidad</label>
+            <label htmlFor="filtro-comunidad" className={etiqueta}>Comunidad</label>
             <div className="relative">
-              <Map size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <select
-                value={comunidad}
-                onChange={(e) => setComunidad(e.target.value)}
-                aria-label="Filtrar por comunidad autónoma"
-                className={selectBase}
-              >
+              <Map size={15} className={icono} />
+              <select id="filtro-comunidad" value={comunidad} onChange={(e) => onComunidad?.(e.target.value)} className={selectBase}>
                 <option value="">Todas las comunidades</option>
                 {COMUNIDADES.map((com) => (
                   <option key={com} value={com}>
-                    {COMUNIDAD_EMOJI[com] ? `${COMUNIDAD_EMOJI[com]} ` : ''}{com}
+                    {COMUNIDAD_EMOJI[com] ? `${COMUNIDAD_EMOJI[com]} ` : ''}{nombreComunidad(com)}
                   </option>
                 ))}
               </select>
@@ -113,42 +148,14 @@ export default function FilterBar() {
             </div>
           </div>
 
-          {/* Ciudad (depende de la comunidad) */}
+          {/* Especialidad */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1 ml-1">Ciudad</label>
+            <label htmlFor="filtro-especialidad" className={etiqueta}>Especialidad</label>
             <div className="relative">
-              <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <select
-                value={ciudad}
-                onChange={(e) => setCiudad(e.target.value)}
-                disabled={!comunidad}
-                aria-label="Filtrar por ciudad"
-                className={selectBase}
-              >
-                <option value="">
-                  {comunidad ? `Todas en ${comunidad}` : 'Elige comunidad primero'}
-                </option>
-                {ciudadesDeComunidad.map((c) => (
-                  <option key={c} value={c}>{CIUDAD_DISPLAY[c] ?? c}</option>
-                ))}
-              </select>
-              <Chevron />
-            </div>
-          </div>
-
-          {/* Especialidad con emoji */}
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1 ml-1">Especialidad</label>
-            <div className="relative">
-              <Stethoscope size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <select
-                value={especialidad}
-                onChange={(e) => setSimple('especialidad', e.target.value)}
-                aria-label="Filtrar por especialidad"
-                className={selectBase}
-              >
+              <Stethoscope size={15} className={icono} />
+              <select id="filtro-especialidad" value={especialidad} onChange={(e) => onEspecialidad?.(e.target.value)} className={selectBase}>
                 <option value="">Todas las especialidades</option>
-                {ESPECIALIDADES.map((e) => (
+                {(especialidad === 'Urgencias' ? ESPECIALIDADES : ESPECIALIDADES_FILTRO).map((e) => (
                   <option key={e} value={e}>
                     {ESPECIALIDAD_EMOJI[e] ? `${ESPECIALIDAD_EMOJI[e]} ` : ''}{e}
                   </option>
@@ -160,15 +167,10 @@ export default function FilterBar() {
 
           {/* Ordenar */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1 ml-1">Ordenar</label>
+            <label htmlFor="filtro-orden" className={etiqueta}>Ordenar</label>
             <div className="relative">
-              <ArrowUpDown size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <select
-                value={orden}
-                onChange={(e) => setSimple('orden', e.target.value === 'relevancia' ? null : e.target.value)}
-                aria-label="Ordenar resultados"
-                className={selectBase}
-              >
+              <ArrowUpDown size={15} className={icono} />
+              <select id="filtro-orden" value={orden} onChange={(e) => onOrden?.(e.target.value)} className={selectBase}>
                 <option value="relevancia">Relevancia</option>
                 <option value="valoracion">Mejor valoradas</option>
                 <option value="nombre">Por nombre</option>
@@ -177,17 +179,6 @@ export default function FilterBar() {
             </div>
           </div>
         </div>
-
-        {/* Urgencias 24h */}
-        <label className="mt-3 inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700 select-none">
-          <input
-            type="checkbox"
-            checked={urgencias}
-            onChange={(e) => setSimple('urgencias', e.target.checked ? '1' : null)}
-            className="rounded accent-teal-600 w-4 h-4 cursor-pointer"
-          />
-          🚨 Solo con urgencias 24h
-        </label>
       </div>
 
       {/* Chips de filtros activos */}
@@ -195,49 +186,55 @@ export default function FilterBar() {
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs text-gray-500">Filtrando por:</span>
 
-          {comunidad && (
-            <button
-              onClick={() => setComunidad('')}
-              className="inline-flex items-center gap-1.5 bg-teal-50 text-teal-700 border border-teal-200 text-xs font-medium px-3 py-1 rounded-full hover:bg-teal-100 transition-colors"
-            >
-              {COMUNIDAD_EMOJI[comunidad] ?? '🗺️'} {comunidad}
-              <X size={12} />
+          {ciudad ? (
+            <button type="button" onClick={onQuitarCiudad} aria-label={`Quitar filtro: ${nombreCiudad(ciudad)}`} className={chip}>
+              📍 {nombreCiudad(ciudad)}
+              <X size={12} aria-hidden />
+            </button>
+          ) : comunidad && (
+            <button type="button" onClick={() => onComunidad?.('')} aria-label={`Quitar filtro: ${nombreComunidad(comunidad)}`} className={chip}>
+              {COMUNIDAD_EMOJI[comunidad] ?? '🗺️'} {nombreComunidad(comunidad)}
+              <X size={12} aria-hidden />
             </button>
           )}
 
-          {ciudad && (
-            <button
-              onClick={() => setCiudad('')}
-              className="inline-flex items-center gap-1.5 bg-teal-50 text-teal-700 border border-teal-200 text-xs font-medium px-3 py-1 rounded-full hover:bg-teal-100 transition-colors"
-            >
-              📍 {CIUDAD_DISPLAY[ciudad] ?? ciudad}
-              <X size={12} />
+          {q && (
+            <button type="button" onClick={onQuitarTexto} aria-label={`Quitar búsqueda: ${q}`} className={chip}>
+              🔎 “{q}”
+              <X size={12} aria-hidden />
             </button>
           )}
 
           {especialidad && (
-            <button
-              onClick={() => setSimple('especialidad', null)}
-              className="inline-flex items-center gap-1.5 bg-teal-50 text-teal-700 border border-teal-200 text-xs font-medium px-3 py-1 rounded-full hover:bg-teal-100 transition-colors"
-            >
+            <button type="button" onClick={() => onEspecialidad?.('')} aria-label={`Quitar filtro: ${especialidad}`} className={chip}>
               {ESPECIALIDAD_EMOJI[especialidad] ?? '🩺'} {especialidad}
-              <X size={12} />
+              <X size={12} aria-hidden />
             </button>
           )}
 
           {urgencias && (
             <button
-              onClick={() => setSimple('urgencias', null)}
-              className="inline-flex items-center gap-1.5 bg-red-50 text-red-600 border border-red-200 text-xs font-medium px-3 py-1 rounded-full hover:bg-red-100 transition-colors"
+              type="button"
+              onClick={() => onUrgencias?.(false)}
+              aria-label="Quitar filtro: urgencias 24 horas"
+              className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 text-xs font-medium px-3 py-1 rounded-full hover:bg-red-100 transition-colors"
             >
               🚨 Urgencias 24h
-              <X size={12} />
+              <X size={12} aria-hidden />
+            </button>
+          )}
+
+          {orden !== 'relevancia' && (
+            <button type="button" onClick={() => onOrden?.('relevancia')} aria-label="Quitar orden" className={chip}>
+              ↕️ {orden === 'valoracion' ? 'Mejor valoradas' : 'Por nombre'}
+              <X size={12} aria-hidden />
             </button>
           )}
 
           <button
-            onClick={limpiarFiltros}
-            className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors ml-1"
+            type="button"
+            onClick={onLimpiar}
+            className="text-xs text-gray-500 hover:text-gray-700 underline underline-offset-2 transition-colors ml-1"
           >
             Limpiar todo
           </button>
@@ -252,7 +249,7 @@ function Chevron() {
   return (
     <svg
       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-      width="12" height="12" viewBox="0 0 12 12" fill="none"
+      width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden
     >
       <path d="M2.5 4.5L6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>

@@ -26,24 +26,39 @@ const LOTE = 24
 export default function ClinicGrid({ initial, total, filtro }: Props) {
   const [items, setItems] = useState<Clinic[]>(initial)
   const [loading, setLoading] = useState(false)
+  const [fallo, setFallo] = useState(false)
+  // true si el índice ya no tiene más (p. ej. se publicó la web entre medias con menos clínicas)
+  const [agotado, setAgotado] = useState(false)
   const sentinel = useRef<HTMLDivElement>(null)
+  // El índice ya filtrado: se filtra una vez, no en cada tanda
+  const filtradas = useRef<{ clave: string; lista: Clinic[] } | null>(null)
   const clave = JSON.stringify(filtro)
+  const quedan = items.length < total && !agotado
 
   const loadMore = useCallback(async () => {
-    if (loading || items.length >= total) return
+    if (loading || !quedan) return
     setLoading(true)
+    setFallo(false)
     try {
-      const todas = filtrarClinicas(await cargarIndice(), JSON.parse(clave) as SearchParams)
-      setItems((prev) => [...prev, ...todas.slice(prev.length, prev.length + LOTE)])
+      if (filtradas.current?.clave !== clave) {
+        filtradas.current = { clave, lista: filtrarClinicas(await cargarIndice(), JSON.parse(clave) as SearchParams) }
+      }
+      const lista = filtradas.current.lista
+      // Solo las que aún no están: si la web se republicó entre medias y el orden cambió,
+      // así no se repite ni se salta ninguna
+      const vistas = new Set(items.map((c) => c.id))
+      const nuevas = lista.filter((c) => !vistas.has(c.id)).slice(0, LOTE)
+      if (nuevas.length) setItems([...items, ...nuevas])
+      else setAgotado(true)
     } catch {
-      /* si falla la red, no rompemos la página */
+      setFallo(true) // sin conexión: el botón pasa a «Reintentar»
     } finally {
       setLoading(false)
     }
-  }, [loading, items.length, total, clave])
+  }, [loading, quedan, items, clave])
 
   useEffect(() => {
-    if (items.length >= total) return
+    if (!quedan || fallo) return
     const el = sentinel.current
     if (!el) return
     const obs = new IntersectionObserver(
@@ -52,10 +67,12 @@ export default function ClinicGrid({ initial, total, filtro }: Props) {
     )
     obs.observe(el)
     return () => obs.disconnect()
-  }, [items.length, total, loadMore])
+  }, [quedan, fallo, loadMore])
 
   return (
     <>
+      {/* Para la navegación por encabezados: de la h1 de la página a las h3 de las tarjetas */}
+      <h2 className="sr-only">Listado de clínicas</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {items.map((clinic, i) => (
           <ClinicCard key={clinic.id} clinic={clinic} priority={i < 3} />
@@ -63,15 +80,16 @@ export default function ClinicGrid({ initial, total, filtro }: Props) {
       </div>
 
       {/* Se cargan más solas al acercarse aquí; el botón sirve con teclado o si falla la carga automática */}
-      {items.length < total && (
-        <div ref={sentinel} className="flex justify-center py-8">
+      {quedan && (
+        <div ref={sentinel} className="flex flex-col items-center gap-2 py-8">
+          {fallo && <p role="alert" className="text-sm text-red-700">No se han podido cargar más clínicas. Revisa tu conexión.</p>}
           <button
             type="button"
             onClick={loadMore}
             disabled={loading}
             className="text-sm font-medium text-teal-700 hover:text-teal-800 border border-teal-200 hover:border-teal-300 bg-white rounded-full px-5 py-2 transition-colors disabled:opacity-60"
           >
-            {loading ? 'Cargando…' : `Ver más clínicas (${items.length} de ${total})`}
+            {loading ? 'Cargando…' : fallo ? 'Reintentar' : `Ver más clínicas (${items.length} de ${total})`}
           </button>
         </div>
       )}

@@ -52,7 +52,8 @@ export default function PrivacidadPage() {
       </p>
       <p>
         Si eres responsable de una clínica, o el profesional cuyos datos aparecen, puedes pedir que los corrijamos o
-        los retiremos, u oponerte a su publicación, escribiendo a {correo}. También podemos escribir al correo
+        los retiremos, u oponerte a su publicación, con el botón «¿Es tu clínica? Actualiza sus datos» de su ficha
+        (que permite corregir cualquier dato o pedir que se retire la ficha) o escribiendo a {correo}. También podemos escribir al correo
         profesional de las clínicas para invitarlas a revisar o completar su ficha; si no quieres recibir estos
         correos, dínoslo y no volveremos a escribirte.
       </p>
@@ -66,7 +67,9 @@ export default function PrivacidadPage() {
       <h3>5. Protección frente al spam</h3>
       <p>
         Cuando envías un formulario guardamos durante un tiempo limitado un resumen (hash) de tu dirección IP, no la
-        dirección en sí, y el número de envíos por hora, para limitar los envíos masivos. Además, los formularios
+        dirección en sí, y el número de envíos por hora, para limitar los envíos masivos. Con cada reseña guardamos
+        también un resumen cifrado de tu conexión y tu navegador (no permite saber tu IP ni quién eres) para detectar
+        reseñas repetidas o falsas; se conserva mientras se conserve la reseña. Además, los formularios
         usan Cloudflare Turnstile, que analiza datos técnicos de tu navegador para comprobar que no eres un robot
         (sin cookies de publicidad ni de seguimiento). Base legal: interés legítimo en la seguridad del servicio.
       </p>

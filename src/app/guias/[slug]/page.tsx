@@ -68,8 +68,9 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
         description: guia.descripcion,
         datePublished: guia.actualizado,
         dateModified: guia.actualizado,
+        image: [`${BASE}${guia.heroImg}`],
         author: { '@type': 'Organization', name: 'VetEspaña', url: BASE },
-        publisher: { '@type': 'Organization', name: 'VetEspaña', url: BASE },
+        publisher: { '@type': 'Organization', name: 'VetEspaña', url: BASE, logo: { '@type': 'ImageObject', url: `${BASE}/apple-icon` } },
         mainEntityOfPage: `${BASE}/guias/${guia.slug}`,
       },
       {

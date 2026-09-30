@@ -7,7 +7,9 @@ import HorarioEditor from '@/components/HorarioEditor'
 import { ESPECIALIDADES, ESPECIALIDAD_EMOJI } from '@/types/clinic'
 import { TITULAR } from '@/lib/legal'
 import Turnstile from '@/components/Turnstile'
-import { URL_BUZON, horarioATexto, horarioTipico, reducirFoto, textoAHorario } from '@/lib/formulario-clinica'
+import {
+  URL_BUZON, horarioATexto, horarioTipico, problemaHorario, reducirFoto, redesValidas, textoAHorario, webValida,
+} from '@/lib/formulario-clinica'
 
 /** Lo que el formulario necesita de una clínica existente (modo edición) */
 export interface DatosClinica {
@@ -40,7 +42,15 @@ const claseCampo =
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
 const telefonoValido = (v: string) => v.replace(/\D/g, '').length >= 9
 
-function Campo({ etiqueta, ayuda, obligatorio, children }: { etiqueta: string; ayuda?: string; obligatorio?: boolean; children: ReactNode }) {
+function Campo({ etiqueta, ayuda, obligatorio, error, idError, children }: {
+  etiqueta: string
+  ayuda?: string
+  obligatorio?: boolean
+  /** Qué falla en este campo (se muestra debajo y el campo lo enlaza con aria-describedby) */
+  error?: string
+  idError?: string
+  children: ReactNode
+}) {
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-medium text-gray-700">
@@ -48,6 +58,7 @@ function Campo({ etiqueta, ayuda, obligatorio, children }: { etiqueta: string; a
         {obligatorio && <span className="text-teal-700"> *</span>}
       </span>
       {children}
+      {error && <span id={idError} className="mt-1 block text-xs font-medium text-red-700">{error}</span>}
       {ayuda && <span className="mt-1 block text-xs text-gray-500">{ayuda}</span>}
     </label>
   )
@@ -102,7 +113,13 @@ export default function FormularioClinica({ modo, clinica }: Props) {
   const [trampa, setTrampa] = useState('') // campo oculto: solo lo rellenan los robots
   const [estado, setEstado] = useState<'editando' | 'enviando' | 'enviado'>('editando')
   const [error, setError] = useState('')
+  // Errores de cada campo al intentar enviar (campo → qué falla)
+  const [errores, setErrores] = useState<Record<string, string>>({})
+  const [fallosEnvio, setFallosEnvio] = useState(0)
+  // Solo en cambios: pedir que se retire la ficha (la clínica ha cerrado…)
+  const [retirar, setRetirar] = useState(false)
   const inicio = useRef(0)
+  const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     inicio.current = Date.now()
@@ -110,9 +127,34 @@ export default function FormularioClinica({ modo, clinica }: Props) {
   useEffect(() => () => {
     if (foto) URL.revokeObjectURL(foto.vista)
   }, [foto])
+  // Tras un envío con errores, el foco va al primer campo que hay que corregir
+  useEffect(() => {
+    if (fallosEnvio) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [data-error="true"]')?.focus()
+  }, [fallosEnvio])
 
-  const poner = <K extends keyof typeof campos>(campo: K, valor: (typeof campos)[K]) =>
+  // Al corregir un campo, su error desaparece
+  const quitarError = (campo: string) =>
+    setErrores((e) => {
+      if (!(campo in e)) return e
+      const resto = { ...e }
+      delete resto[campo]
+      return resto
+    })
+  const poner = <K extends keyof typeof campos>(campo: K, valor: (typeof campos)[K]) => {
     setCampos((c) => ({ ...c, [campo]: valor }))
+    quitarError(campo === 'ciudadOtra' ? 'ciudad' : campo)
+  }
+  const ponerContacto = (campo: keyof typeof contacto, valor: string) => {
+    setContacto((c) => ({ ...c, [campo]: valor }))
+    quitarError(`contacto-${campo}`)
+    if (campo === 'email' || campo === 'telefono') quitarError('contacto-email')
+  }
+  // Atributos de accesibilidad de un campo con (o sin) error
+  const aria = (campo: string, obligatorio = false) => ({
+    'aria-invalid': errores[campo] ? true : undefined,
+    'aria-describedby': errores[campo] ? `error-${campo}` : undefined,
+    'aria-required': obligatorio || undefined,
+  })
 
   function alternarEspecialidad(nombre: string) {
     poner('especialidades', campos.especialidades.includes(nombre)
@@ -149,32 +191,45 @@ export default function FormularioClinica({ modo, clinica }: Props) {
       const texto = horarioATexto(horario)
       if (texto !== (clinica?.horario ?? '')) c.horario = texto
     }
+    if (retirar) c.retirar = true
     return c
   }
 
-  function comprobar(): string {
+  // Todo lo que falla, campo a campo y en el orden del formulario
+  function comprobar(): Record<string, string> {
+    const e: Record<string, string> = {}
+    const v = (x: string) => x.trim()
     if (modo === 'alta') {
-      if (campos.nombre.trim().length < 2) return 'Falta el nombre de la clínica'
-      if (ciudadNoEsta ? campos.ciudadOtra.trim().length < 2 : !campos.ciudad) return 'Falta la ciudad'
-      if (campos.direccion.trim().length < 5) return 'Falta la dirección'
-      if (!telefonoValido(campos.telefono)) return 'Revisa el teléfono de la clínica (al menos 9 cifras)'
-    } else {
-      if (campos.telefono.trim() && !telefonoValido(campos.telefono)) return 'Revisa el teléfono de la clínica (al menos 9 cifras)'
-      if (!Object.keys(cambios()).length && !foto && !mensaje.trim()) return 'No has cambiado ningún dato'
+      if (v(campos.nombre).length < 2) e.nombre = 'Falta el nombre de la clínica'
+      if (ciudadNoEsta ? v(campos.ciudadOtra).length < 2 : !campos.ciudad) e.ciudad = 'Falta la ciudad'
+      if (v(campos.direccion).length < 5) e.direccion = 'Falta la dirección (calle, número y código postal)'
+      if (!telefonoValido(campos.telefono)) e.telefono = 'Revisa el teléfono (al menos 9 cifras)'
+    } else if (v(campos.telefono) && !telefonoValido(campos.telefono)) {
+      e.telefono = 'Revisa el teléfono (al menos 9 cifras)'
     }
-    if (campos.email.trim() && !emailValido(campos.email.trim())) return 'Revisa el email de la clínica'
-    if (contacto.nombre.trim().length < 2) return 'Falta tu nombre'
-    if (!contacto.email.trim() && !contacto.telefono.trim()) return 'Déjanos un email o un teléfono para contactarte'
-    if (contacto.email.trim() && !emailValido(contacto.email.trim())) return 'Revisa tu email de contacto'
-    if (!acepta) return 'Falta marcar la casilla del uso de los datos'
-    return ''
+    if (v(campos.whatsapp) && !telefonoValido(campos.whatsapp)) e.whatsapp = 'Revisa el WhatsApp (al menos 9 cifras)'
+    if (v(campos.email) && !emailValido(v(campos.email))) e.email = 'Revisa el email de la clínica'
+    if (v(campos.web) && !webValida(v(campos.web))) e.web = 'Revisa la web (por ejemplo, www.tuclinica.es)'
+    if (v(campos.redes) && !redesValidas(v(campos.redes))) e.redes = 'Pon un enlace (instagram.com/…) o un usuario (@tuclinica)'
+    if (horarioTocado && problemaHorario(horario)) e.horario = problemaHorario(horario)
+    if (v(contacto.nombre).length < 2) e['contacto-nombre'] = 'Falta tu nombre'
+    if (!v(contacto.email) && !v(contacto.telefono)) e['contacto-email'] = 'Déjanos un email o un teléfono para contactarte'
+    else if (v(contacto.email) && !emailValido(v(contacto.email))) e['contacto-email'] = 'Revisa tu email'
+    if (v(contacto.telefono) && !telefonoValido(contacto.telefono)) e['contacto-telefono'] = 'Revisa tu teléfono (al menos 9 cifras)'
+    if (!acepta) e.acepta = 'Falta marcar la casilla del uso de los datos'
+    if (modo === 'edicion' && !Object.keys(e).length && !Object.keys(cambios()).length && !foto && !v(mensaje)) {
+      e.cambios = 'No has cambiado ningún dato'
+    }
+    return e
   }
 
   async function enviar(e: FormEvent) {
     e.preventDefault()
-    const problema = comprobar()
-    if (problema) {
-      setError(problema)
+    const problemas = comprobar()
+    setErrores(problemas)
+    if (Object.keys(problemas).length) {
+      setError('')
+      setFallosEnvio((f) => f + 1)
       return
     }
     if (!token) {
@@ -205,7 +260,8 @@ export default function FormularioClinica({ modo, clinica }: Props) {
               ...Object.fromEntries(CAMPOS_TEXTO.map((c) => [c, campos[c].trim()])),
               ciudad: ciudadNoEsta ? '' : campos.ciudad,
               ciudadOtra: ciudadNoEsta ? campos.ciudadOtra.trim() : '',
-              horario: horarioATexto(horario),
+              // El horario de ejemplo no se envía si no lo han tocado (no inventar horarios)
+              horario: horarioTocado ? horarioATexto(horario) : '',
               especialidades: campos.especialidades,
               urgencias24h: campos.urgencias24h,
             },
@@ -231,6 +287,10 @@ export default function FormularioClinica({ modo, clinica }: Props) {
     }
   }
 
+  // Resumen junto al botón (se actualiza al ir corrigiendo)
+  const nErrores = Object.keys(errores).length
+  const resumenErrores = nErrores > 1 ? `Revisa los ${nErrores} campos marcados en rojo.` : nErrores === 1 ? Object.values(errores)[0] : ''
+
   if (estado === 'enviado') {
     return (
       <div className="rounded-2xl border border-teal-200 bg-teal-50 p-6 text-center">
@@ -246,7 +306,7 @@ export default function FormularioClinica({ modo, clinica }: Props) {
   }
 
   return (
-    <form onSubmit={enviar} noValidate className="space-y-6">
+    <form ref={formRef} onSubmit={enviar} noValidate className="space-y-6">
       {modo === 'edicion' && (
         <p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
           Cambia solo lo que no esté bien. Revisamos cada cambio antes de publicarlo, y puede que te llamemos para confirmarlo.
@@ -254,8 +314,8 @@ export default function FormularioClinica({ modo, clinica }: Props) {
       )}
 
       <Seccion titulo="Datos de la clínica">
-        <Campo etiqueta="Nombre de la clínica" obligatorio={modo === 'alta'}>
-          <input className={claseCampo} value={campos.nombre} onChange={(e) => poner('nombre', e.target.value)} maxLength={120} autoComplete="organization" />
+        <Campo etiqueta="Nombre de la clínica" obligatorio={modo === 'alta'} error={errores.nombre} idError="error-nombre">
+          <input className={claseCampo} value={campos.nombre} onChange={(e) => poner('nombre', e.target.value)} maxLength={120} autoComplete="organization" {...aria('nombre', modo === 'alta')} />
         </Campo>
         <div>
           <span className="mb-1 block text-sm font-medium text-gray-700">
@@ -269,6 +329,7 @@ export default function FormularioClinica({ modo, clinica }: Props) {
               maxLength={80}
               placeholder="Escribe la ciudad o el pueblo"
               aria-label="Ciudad"
+              {...aria('ciudad', modo === 'alta')}
             />
           ) : (
             <CitySelect
@@ -278,31 +339,35 @@ export default function FormularioClinica({ modo, clinica }: Props) {
               placeholder="Busca la ciudad"
               opcionVacia="Sin elegir"
               etiqueta="Ciudad de la clínica"
+              todas
+              invalida={!!errores.ciudad}
+              describedBy={errores.ciudad ? 'error-ciudad' : undefined}
             />
           )}
+          {errores.ciudad && <span id="error-ciudad" className="mt-1 block text-xs font-medium text-red-700">{errores.ciudad}</span>}
           <button type="button" onClick={() => setCiudadNoEsta(!ciudadNoEsta)} className="mt-1 text-xs font-medium text-teal-700 hover:underline">
             {ciudadNoEsta ? 'Elegir de la lista' : '¿No encuentras la ciudad? Escríbela'}
           </button>
         </div>
-        <Campo etiqueta="Dirección" obligatorio={modo === 'alta'} ayuda="Calle, número y código postal">
-          <input className={claseCampo} value={campos.direccion} onChange={(e) => poner('direccion', e.target.value)} maxLength={200} autoComplete="street-address" />
+        <Campo etiqueta="Dirección" obligatorio={modo === 'alta'} ayuda="Calle, número y código postal" error={errores.direccion} idError="error-direccion">
+          <input className={claseCampo} value={campos.direccion} onChange={(e) => poner('direccion', e.target.value)} maxLength={200} autoComplete="street-address" {...aria('direccion', modo === 'alta')} />
         </Campo>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo etiqueta="Teléfono" obligatorio={modo === 'alta'}>
-            <input className={claseCampo} type="tel" value={campos.telefono} onChange={(e) => poner('telefono', e.target.value)} maxLength={40} />
+          <Campo etiqueta="Teléfono" obligatorio={modo === 'alta'} error={errores.telefono} idError="error-telefono">
+            <input className={claseCampo} type="tel" value={campos.telefono} onChange={(e) => poner('telefono', e.target.value)} maxLength={40} {...aria('telefono', modo === 'alta')} />
           </Campo>
-          <Campo etiqueta="WhatsApp" ayuda="Si atendéis por WhatsApp">
-            <input className={claseCampo} type="tel" value={campos.whatsapp} onChange={(e) => poner('whatsapp', e.target.value)} maxLength={40} />
+          <Campo etiqueta="WhatsApp" ayuda="Si atendéis por WhatsApp" error={errores.whatsapp} idError="error-whatsapp">
+            <input className={claseCampo} type="tel" value={campos.whatsapp} onChange={(e) => poner('whatsapp', e.target.value)} maxLength={40} {...aria('whatsapp')} />
           </Campo>
-          <Campo etiqueta="Email de la clínica">
-            <input className={claseCampo} type="email" value={campos.email} onChange={(e) => poner('email', e.target.value)} maxLength={120} />
+          <Campo etiqueta="Email de la clínica" error={errores.email} idError="error-email">
+            <input className={claseCampo} type="email" value={campos.email} onChange={(e) => poner('email', e.target.value)} maxLength={120} {...aria('email')} />
           </Campo>
-          <Campo etiqueta="Web">
-            <input className={claseCampo} value={campos.web} onChange={(e) => poner('web', e.target.value)} maxLength={200} placeholder="www.tuclinica.es" />
+          <Campo etiqueta="Web" error={errores.web} idError="error-web">
+            <input className={claseCampo} type="url" inputMode="url" value={campos.web} onChange={(e) => poner('web', e.target.value)} maxLength={200} placeholder="www.tuclinica.es" {...aria('web')} />
           </Campo>
         </div>
-        <Campo etiqueta="Redes sociales" ayuda="Instagram, Facebook… (un enlace)">
-          <input className={claseCampo} value={campos.redes} onChange={(e) => poner('redes', e.target.value)} maxLength={200} />
+        <Campo etiqueta="Redes sociales" ayuda="Instagram, Facebook… (un enlace o @usuario)" error={errores.redes} idError="error-redes">
+          <input className={claseCampo} value={campos.redes} onChange={(e) => poner('redes', e.target.value)} maxLength={200} {...aria('redes')} />
         </Campo>
       </Seccion>
 
@@ -312,14 +377,22 @@ export default function FormularioClinica({ modo, clinica }: Props) {
             Horario actual en la web: {clinica.horario}
           </p>
         )}
-        {modo === 'alta' && <p className="text-xs text-gray-500">Viene puesto un horario habitual: cámbialo por el vuestro.</p>}
+        {modo === 'alta' && !horarioTocado && (
+          <p className="text-xs text-gray-500">
+            Viene puesto un horario habitual como ejemplo: cámbialo por el vuestro. Si no lo tocas, no lo enviamos.
+          </p>
+        )}
         <HorarioEditor
           valor={horario}
           onChange={(v) => {
             setHorario(v)
             setHorarioTocado(true)
+            quitarError('horario')
           }}
         />
+        {errores.horario && (
+          <p id="error-horario" data-error="true" tabIndex={-1} className="text-xs font-medium text-red-700 outline-none">{errores.horario}</p>
+        )}
       </Seccion>
 
       <Seccion titulo="Qué ofrecéis">
@@ -374,28 +447,45 @@ export default function FormularioClinica({ modo, clinica }: Props) {
       <Seccion titulo="Tus datos">
         <p className="text-xs text-gray-500">Solo para comprobar la información o contactarte si hace falta. No se publican.</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo etiqueta="Tu nombre" obligatorio>
-            <input className={claseCampo} value={contacto.nombre} onChange={(e) => setContacto({ ...contacto, nombre: e.target.value })} maxLength={80} autoComplete="name" />
+          <Campo etiqueta="Tu nombre" obligatorio error={errores['contacto-nombre']} idError="error-contacto-nombre">
+            <input className={claseCampo} value={contacto.nombre} onChange={(e) => ponerContacto('nombre', e.target.value)} maxLength={80} autoComplete="name" {...aria('contacto-nombre', true)} />
           </Campo>
           <Campo etiqueta="Tu relación con la clínica">
-            <select className={claseCampo} value={contacto.cargo} onChange={(e) => setContacto({ ...contacto, cargo: e.target.value })}>
+            <select className={claseCampo} value={contacto.cargo} onChange={(e) => ponerContacto('cargo', e.target.value)}>
               <option value="">Elige una opción</option>
               {CARGOS.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </Campo>
-          <Campo etiqueta="Tu email">
-            <input className={claseCampo} type="email" value={contacto.email} onChange={(e) => setContacto({ ...contacto, email: e.target.value })} maxLength={120} autoComplete="email" />
+          <Campo etiqueta="Tu email" error={errores['contacto-email']} idError="error-contacto-email">
+            <input className={claseCampo} type="email" value={contacto.email} onChange={(e) => ponerContacto('email', e.target.value)} maxLength={120} autoComplete="email" {...aria('contacto-email')} />
           </Campo>
-          <Campo etiqueta="Tu teléfono" ayuda="Email o teléfono: al menos uno de los dos">
-            <input className={claseCampo} type="tel" value={contacto.telefono} onChange={(e) => setContacto({ ...contacto, telefono: e.target.value })} maxLength={40} autoComplete="tel" />
+          <Campo etiqueta="Tu teléfono" ayuda="Email o teléfono: al menos uno de los dos" error={errores['contacto-telefono']} idError="error-contacto-telefono">
+            <input className={claseCampo} type="tel" value={contacto.telefono} onChange={(e) => ponerContacto('telefono', e.target.value)} maxLength={40} autoComplete="tel" {...aria('contacto-telefono')} />
           </Campo>
         </div>
         <Campo etiqueta="¿Algo más que debamos saber?">
-          <textarea className={`${claseCampo} resize-y`} rows={3} value={mensaje} onChange={(e) => setMensaje(e.target.value)} maxLength={1000} />
+          <textarea className={`${claseCampo} resize-y`} rows={3} value={mensaje} onChange={(e) => { setMensaje(e.target.value); quitarError('cambios') }} maxLength={1000} />
         </Campo>
       </Seccion>
+
+      {modo === 'edicion' && (
+        <Seccion titulo="¿La clínica ha cerrado?">
+          <label className="flex items-start gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={retirar}
+              onChange={(e) => { setRetirar(e.target.checked); quitarError('cambios') }}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-teal-600"
+            />
+            <span>
+              Pedimos que se retire esta ficha de VetEspaña (por ejemplo, porque la clínica ha cerrado o ya no
+              queremos aparecer). Lo confirmaremos con la clínica antes de quitarla.
+            </span>
+          </label>
+        </Seccion>
+      )}
 
       {/* Trampa para robots: invisible para las personas */}
       <input
@@ -410,7 +500,13 @@ export default function FormularioClinica({ modo, clinica }: Props) {
       />
 
       <label className="flex items-start gap-2 text-sm text-gray-600">
-        <input type="checkbox" checked={acepta} onChange={(e) => setAcepta(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-600" />
+        <input
+          type="checkbox"
+          checked={acepta}
+          onChange={(e) => { setAcepta(e.target.checked); quitarError('acepta') }}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-teal-600"
+          {...aria('acepta', true)}
+        />
         <span>
           Acepto que VetEspaña use estos datos para {modo === 'alta' ? 'publicar la clínica' : 'actualizar la ficha'} y para contactarme sobre
           ella. Los datos de la clínica se publicarán en su ficha; mis datos de contacto, no. Responsable: {TITULAR.nombre}.
@@ -421,7 +517,13 @@ export default function FormularioClinica({ modo, clinica }: Props) {
 
       <Turnstile key={intento} onToken={setToken} />
 
-      {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {errores.acepta && <p id="error-acepta" className="text-xs font-medium text-red-700">{errores.acepta}</p>}
+
+      {(resumenErrores || error) && (
+        <p role="alert" data-error={errores.cambios ? 'true' : undefined} tabIndex={-1} className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 outline-none">
+          {resumenErrores || error}
+        </p>
+      )}
 
       <button
         type="submit"

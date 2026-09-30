@@ -1,11 +1,23 @@
 import type { Metadata } from 'next'
 import Link from '@/components/Enlace'
-import { clinicasMasDe, getFeaturedClinics } from '@/lib/datos'
+import { clinicasMasDe, getAllClinics, getFeaturedClinics } from '@/lib/datos'
+import { comunidadDeCiudad } from '@/types/clinic'
 import ClinicCard from '@/components/ClinicCard'
 import SearchBar from '@/components/SearchBar'
 import SpainMap from '@/components/SpainMap'
 import { GUIAS } from '@/data/guias'
 import { ArrowRight, ShieldCheck, Star, Zap } from 'lucide-react'
+import { jsonLdSeguro, SITIO } from '@/lib/seo'
+import { TITULAR } from '@/lib/legal'
+
+// Datos estructurados de la web y de quién la publica (nombre del sitio y logo en Google)
+const JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'WebSite', '@id': `${SITIO}/#web`, name: 'VetEspaña', url: SITIO, inLanguage: 'es-ES', publisher: { '@id': `${SITIO}/#organizacion` } },
+    { '@type': 'Organization', '@id': `${SITIO}/#organizacion`, name: 'VetEspaña', url: SITIO, logo: `${SITIO}/apple-icon`, email: TITULAR.email },
+  ],
+}
 
 // El resto de metadatos de la portada (título, descripción, redes) salen del layout
 export const metadata: Metadata = {
@@ -16,9 +28,17 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const clinicas = await getFeaturedClinics()
   const masDe = await clinicasMasDe()
+  // Clínicas de cada comunidad, para el mapa
+  const clinicasPorComunidad: Record<string, number> = {}
+  for (const c of await getAllClinics()) {
+    const comunidad = comunidadDeCiudad(c.ciudad)
+    if (comunidad) clinicasPorComunidad[comunidad] = (clinicasPorComunidad[comunidad] ?? 0) + 1
+  }
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdSeguro(JSON_LD) }} />
+
       {/* Hero */}
       <section className="bg-gradient-to-br from-teal-600 to-teal-800 text-white py-20 px-4">
         <div className="max-w-3xl mx-auto text-center">
@@ -63,7 +83,7 @@ export default async function HomePage() {
         <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">Busca por comunidad autónoma</h2>
         <p className="text-sm text-gray-500 mb-5 text-center">Explora las clínicas veterinarias de toda España en el mapa</p>
         <div className="bg-gradient-to-b from-teal-50/60 to-white rounded-3xl border border-gray-100 p-4 sm:p-6">
-          <SpainMap />
+          <SpainMap clinicasPorComunidad={clinicasPorComunidad} />
         </div>
       </section>
 

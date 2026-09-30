@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { Client } from 'pg'
 import type { Clinic, ClinicPhoto, Review } from '@/types/clinic'
-import { CIUDADES_POR_COMUNIDAD } from '@/types/clinic'
+import { CIUDADES_POR_COMUNIDAD, CIUDAD_DE_SLUG_BD } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
 import { filtrarClinicas, ordenarClinicas, type SearchParams } from '@/lib/search'
 
@@ -21,10 +21,12 @@ function miniatura(archivo: string): string | undefined {
   return fs.existsSync(path.join(CARPETA_FOTOS, mini)) ? URL_FOTOS + mini : undefined
 }
 
-// Slug de la base → valor de ciudad que usa la web (CIUDADES_POR_COMUNIDAD en clinic.ts).
-const CIUDAD_POR_SLUG_BD = new Map(
-  Object.values(CIUDADES_POR_COMUNIDAD).flat().map((ciudad) => [ciudadSlug(ciudad), ciudad])
-)
+// Slug de la base → valor de ciudad que usa la web (CIUDADES_POR_COMUNIDAD en clinic.ts,
+// más las ciudades nuevas de la base que añade scripts/ciudades-bd.mjs antes del build).
+const CIUDAD_POR_SLUG_BD = new Map([
+  ...Object.values(CIUDADES_POR_COMUNIDAD).flat().map((ciudad) => [ciudadSlug(ciudad), ciudad] as const),
+  ...Object.entries(CIUDAD_DE_SLUG_BD),
+])
 
 type FilaClinica = {
   id: string
@@ -92,7 +94,8 @@ async function cargar(): Promise<Datos> {
                                   ORDER BY f.tipo, f.orden)
                          FROM fotos f WHERE f.clinica_id = c.id), '[]') AS fotos
       FROM clinicas c
-      JOIN ciudades ci ON ci.id = c.ciudad_id`)
+      JOIN ciudades ci ON ci.id = c.ciudad_id
+      WHERE NOT c.oculta -- fichas retiradas (clínica cerrada, no es una clínica…): no salen en la web`)
     const { rows: filasResenas } = await db.query<FilaResena>(`
       SELECT id::text, clinica_id::text, nombre_usuario, puntuacion, comentario, fecha::text
       FROM resenas WHERE aprobada ORDER BY fecha DESC, id DESC`)
@@ -114,7 +117,8 @@ async function cargar(): Promise<Datos> {
 
     const sinCiudad = [...new Set(filas.map((f) => f.ciudad_slug).filter((s) => !CIUDAD_POR_SLUG_BD.has(s)))]
     if (sinCiudad.length) {
-      throw new Error(`Ciudades de la base que no están en CIUDADES_POR_COMUNIDAD (types/clinic.ts): ${sinCiudad.join(', ')}`)
+      // Solo pasa si no se pudo generar src/data/ciudades-bd.json (scripts/ciudades-bd.mjs)
+      throw new Error(`Ciudades de la base que la web no conoce (ni en types/clinic.ts ni en src/data/ciudades-bd.json): ${sinCiudad.join(', ')}`)
     }
 
     const clinicas = filas.map((f): Clinic => {

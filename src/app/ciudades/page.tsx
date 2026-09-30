@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import Link from '@/components/Enlace'
-import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDAD_EMOJI } from '@/types/clinic'
+import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDAD_EMOJI, nombreComunidad } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
 import { getAllClinics } from '@/lib/datos'
 import { metadatosPagina } from '@/lib/seo'
+import SearchBar from '@/components/SearchBar'
 
 // Índice navegable de las ciudades que tienen clínicas (las vacías no se enlazan:
 // llevan noindex). Reparte enlaces internos a las páginas de ciudad → rastreo e indexación.
@@ -15,7 +16,9 @@ export const metadata: Metadata = metadatosPagina({
 })
 
 export default async function CiudadesPage() {
-  const conClinicas = new Set((await getAllClinics()).map((c) => c.ciudad))
+  // Nº de clínicas de cada ciudad
+  const conClinicas = new Map<string, number>()
+  for (const c of await getAllClinics()) conClinicas.set(c.ciudad, (conClinicas.get(c.ciudad) ?? 0) + 1)
   const ciudadesDe = (comunidad: string) => CIUDADES_POR_COMUNIDAD[comunidad].filter((c) => conClinicas.has(c))
   const comunidades = Object.keys(CIUDADES_POR_COMUNIDAD)
     .filter((comunidad) => ciudadesDe(comunidad).length > 0)
@@ -25,11 +28,16 @@ export default async function CiudadesPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Veterinarios por ciudad</h1>
-      <p className="text-gray-500 mb-10 max-w-2xl">
+      <p className="text-gray-500 mb-6 max-w-2xl">
         Explora las <strong>{totalCiudades} ciudades</strong> de España con clínicas veterinarias en
         VetEspaña. Elige tu ciudad para ver los veterinarios cercanos, sus horarios, especialidades y
         urgencias 24h.
       </p>
+
+      {/* Buscar la ciudad directamente, sin recorrer toda la lista */}
+      <div className="mb-10 max-w-2xl">
+        <SearchBar />
+      </div>
 
       <div className="space-y-10">
         {comunidades.map((comunidad) => {
@@ -44,20 +52,22 @@ export default async function CiudadesPage() {
                   href={`/comunidades/${ciudadSlug(comunidad)}`}
                   className="hover:text-teal-600"
                 >
-                  {comunidad}
+                  {nombreComunidad(comunidad)}
                 </Link>
               </h2>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
+              <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-1.5">
                 {ciudades.map((ciudad) => (
-                  <Link
-                    key={ciudad}
-                    href={`/veterinarios/${ciudadSlug(ciudad)}`}
-                    className="text-sm text-gray-600 hover:text-teal-600 hover:underline"
-                  >
-                    Veterinarios en {CIUDAD_DISPLAY[ciudad] ?? ciudad}
-                  </Link>
+                  <li key={ciudad}>
+                    <Link
+                      href={`/veterinarios/${ciudadSlug(ciudad)}`}
+                      aria-label={`Veterinarios en ${CIUDAD_DISPLAY[ciudad] ?? ciudad}: ${conClinicas.get(ciudad) === 1 ? '1 clínica' : `${conClinicas.get(ciudad)} clínicas`}`}
+                      className="text-sm text-gray-600 hover:text-teal-600 hover:underline"
+                    >
+                      {CIUDAD_DISPLAY[ciudad] ?? ciudad} <span className="text-gray-500">({conClinicas.get(ciudad)})</span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </section>
           )
         })}

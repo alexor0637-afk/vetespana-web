@@ -1,3 +1,6 @@
+import ciudadesBd from '@/data/ciudades-bd.json'
+import { ciudadSlug } from '@/lib/slug'
+
 export type Plan = 'Gratis' | 'Premium'
 
 export interface ClinicPhoto {
@@ -102,7 +105,41 @@ export const CIUDADES_POR_COMUNIDAD: Record<string, string[]> = {
   'País Vasco':           ['Barakaldo', 'Basauri', 'Bermeo', 'Bilbao', 'Durango', 'Eibar', 'Errenteria', 'Gernika-Lumo', 'Getxo', 'Hernani', 'Irun', 'Llodio', 'Mondragón', 'Portugalete', 'San Sebastián', 'Santurtzi', 'Sestao', 'Tolosa', 'Vitoria', 'Zarautz'],
 }
 
+// Ciudades de la base: [slug, nombre, comunidad, nº de clínicas]. Las escribe
+// scripts/ciudades-bd.mjs justo antes de cada build; en el repo va vacío (y entonces
+// se ofrecen todas las ciudades de la lista de arriba).
+const CIUDADES_BD = ciudadesBd.ciudades as [string, string, string, number][]
+
+// Slug de la base → valor de ciudad de la web. Las ciudades que se creen en la base y
+// aún no estén en la lista de arriba se añaden solas con su nombre: así, crear una
+// ciudad en NocoDB no para la publicación de la web.
+export const CIUDAD_DE_SLUG_BD: Record<string, string> = {}
+{
+  const porSlug = new Map(Object.values(CIUDADES_POR_COMUNIDAD).flat().map((c) => [ciudadSlug(c), c]))
+  for (const [slug, nombre, comunidad] of CIUDADES_BD) {
+    const conocida = porSlug.get(slug) ?? porSlug.get(ciudadSlug(nombre))
+    if (!conocida) {
+      (CIUDADES_POR_COMUNIDAD[comunidad] ??= []).push(nombre)
+      porSlug.set(ciudadSlug(nombre), nombre)
+    }
+    CIUDAD_DE_SLUG_BD[slug] = conocida ?? nombre
+  }
+}
+
+// Clínicas de cada ciudad (valor de la web → nº), según la base al generar la web
+const CLINICAS_POR_CIUDAD: Record<string, number> = Object.fromEntries(
+  CIUDADES_BD.map(([slug, , , n]) => [CIUDAD_DE_SLUG_BD[slug], n])
+)
+// ¿Tiene clínicas? (sin datos de la base, se da por hecho que sí)
+export const tieneClinicas = (ciudad: string) => !CIUDADES_BD.length || (CLINICAS_POR_CIUDAD[ciudad] ?? 0) > 0
+
 export const COMUNIDADES = Object.keys(CIUDADES_POR_COMUNIDAD)
+
+// Nombre de la comunidad para mostrar (la clave y su slug no cambian: salen en las URLs)
+const COMUNIDAD_DISPLAY: Record<string, string> = {
+  'C. Valenciana': 'Comunidad Valenciana',
+}
+export const nombreComunidad = (comunidad: string) => COMUNIDAD_DISPLAY[comunidad] ?? comunidad
 
 export const COMUNIDAD_EMOJI: Record<string, string> = {
   'Andalucía':            '🌞',

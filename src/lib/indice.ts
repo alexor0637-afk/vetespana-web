@@ -8,7 +8,7 @@ import { ESPECIALIDADES } from '@/types/clinic'
 
 export const URL_INDICE = '/datos/clinicas.json'
 
-// [id, slug, nombre, ciudad, dirección, teléfono, 1ª línea del horario,
+// [id, slug, nombre, ciudad, dirección, teléfono, horario (compacto),
 //  especialidades (índices de ESPECIALIDADES), marcas, valoración, foto, lat, lng]
 export type FilaIndice = [
   string, string, string, string, string, string, string,
@@ -20,6 +20,20 @@ const PREMIUM = 2
 const VERIFICADA = 4
 const FOTO_GOOGLE = 8 // la foto viene de Google Maps: se muestra con su atribución
 
+// Horario completo (las tarjetas enseñan el de hoy y si está abierta), en poco espacio:
+// si son los 7 días en orden («lunes: …» … «domingo: …»), «~» y solo los valores
+// separados por «|»; si no, el texto tal cual.
+const DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+function horarioCompacto(horario?: string): string {
+  if (!horario) return ''
+  const lineas = horario.split('\n')
+  const valores = lineas.map((l, i) => (l.startsWith(`${DIAS[i]}: `) ? l.slice(DIAS[i].length + 2) : null))
+  return lineas.length === 7 && valores.every((v) => v !== null && !v.includes('|')) ? `~${valores.join('|')}` : horario
+}
+function horarioCompleto(guardado: string): string {
+  return guardado.startsWith('~') ? guardado.slice(1).split('|').map((v, i) => `${DIAS[i]}: ${v}`).join('\n') : guardado
+}
+
 export function aIndice(clinicas: Clinic[]): FilaIndice[] {
   return clinicas.map((c) => [
     c.id,
@@ -28,7 +42,7 @@ export function aIndice(clinicas: Clinic[]): FilaIndice[] {
     c.ciudad,
     c.direccion,
     c.telefono,
-    (c.horario ?? '').split('\n')[0],
+    horarioCompacto(c.horario),
     c.especialidades.map((e) => ESPECIALIDADES.indexOf(e as (typeof ESPECIALIDADES)[number])).filter((i) => i >= 0),
     (c.urgencias24h ? URGENCIAS : 0) | (c.plan === 'Premium' ? PREMIUM : 0) | (c.verificada ? VERIFICADA : 0) |
       (c.fotoPortada?.deGoogle ? FOTO_GOOGLE : 0),
@@ -48,7 +62,7 @@ export function desdeIndice(filas: FilaIndice[]): Clinic[] {
     ciudad,
     direccion,
     telefono,
-    horario: horario || undefined,
+    horario: horario ? horarioCompleto(horario) : undefined,
     especialidades: esp.map((i) => ESPECIALIDADES[i]),
     urgencias24h: (marcas & URGENCIAS) !== 0,
     plan: marcas & PREMIUM ? 'Premium' : 'Gratis',

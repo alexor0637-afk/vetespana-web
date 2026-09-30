@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from '@/components/Enlace'
 import { notFound } from 'next/navigation'
 import { searchClinics } from '@/lib/datos'
-import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDADES, COMUNIDAD_EMOJI } from '@/types/clinic'
+import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDADES, COMUNIDAD_EMOJI, nombreComunidad } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
 import { cityFacts, clinicasVeterinarias } from '@/lib/city-content'
 import { metadatosPagina } from '@/lib/seo'
@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!comunidad) return {}
   const n = (await searchClinics({ comunidad })).length
   return metadatosPagina({
-    title: `Veterinarios en ${comunidad}: ${clinicasVeterinarias(n)}`,
-    description: `${clinicasVeterinarias(n)} en ${comunidad}: busca por ciudad, urgencias 24h y especialidades. Teléfono, horario, dirección y reseñas de cada clínica.`,
+    title: `Veterinarios en ${nombreComunidad(comunidad)}: ${clinicasVeterinarias(n)}`,
+    description: `${clinicasVeterinarias(n)} en ${nombreComunidad(comunidad)}: busca por ciudad, urgencias 24h y especialidades. Teléfono, horario, dirección y reseñas de cada clínica.`,
     ruta: `/comunidades/${slug}`,
     indexar: n > 0,
   })
@@ -45,9 +45,12 @@ export default async function ComunidadPage({ params }: Props) {
   const filtradas = await searchClinics({ comunidad })
   const PAGE = 24
   const { count24h, topEsp } = cityFacts(filtradas)
-  const ciudades = [...(CIUDADES_POR_COMUNIDAD[comunidad] ?? [])].sort((a, b) =>
-    (CIUDAD_DISPLAY[a] ?? a).localeCompare(CIUDAD_DISPLAY[b] ?? b, 'es')
-  )
+  // Solo las ciudades con alguna clínica (las demás serían páginas vacías), con cuántas tiene
+  const porCiudad = new Map<string, number>()
+  for (const c of filtradas) porCiudad.set(c.ciudad, (porCiudad.get(c.ciudad) ?? 0) + 1)
+  const ciudades = (CIUDADES_POR_COMUNIDAD[comunidad] ?? [])
+    .filter((c) => porCiudad.has(c))
+    .sort((a, b) => (CIUDAD_DISPLAY[a] ?? a).localeCompare(CIUDAD_DISPLAY[b] ?? b, 'es'))
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -56,7 +59,7 @@ export default async function ComunidadPage({ params }: Props) {
           Clínicas
         </Link>
         <span>/</span>
-        <span className="text-gray-600">{comunidad}</span>
+        <span className="text-gray-600">{nombreComunidad(comunidad)}</span>
       </nav>
 
       <div className="mb-6">
@@ -65,7 +68,7 @@ export default async function ComunidadPage({ params }: Props) {
 
       <div className="flex items-baseline justify-between mb-3">
         <h1 className="text-2xl font-bold text-gray-900">
-          <span aria-hidden>{COMUNIDAD_EMOJI[comunidad] ?? '📍'} </span>Veterinarios en {comunidad}
+          <span aria-hidden>{COMUNIDAD_EMOJI[comunidad] ?? '📍'} </span>Veterinarios en {nombreComunidad(comunidad)}
         </h1>
         <span className="text-sm text-gray-500">
           {filtradas.length} clínica{filtradas.length !== 1 ? 's' : ''}
@@ -76,7 +79,7 @@ export default async function ComunidadPage({ params }: Props) {
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-8 text-sm">
         {ciudades.map((ciudad) => (
           <Link key={ciudad} href={`/veterinarios/${ciudadSlug(ciudad)}`} className="text-gray-600 hover:text-teal-600 hover:underline">
-            {CIUDAD_DISPLAY[ciudad] ?? ciudad}
+            {CIUDAD_DISPLAY[ciudad] ?? ciudad} <span className="text-gray-500">({porCiudad.get(ciudad)})</span>
           </Link>
         ))}
       </div>
@@ -84,10 +87,10 @@ export default async function ComunidadPage({ params }: Props) {
       {filtradas.length > 0 ? (
         <ClinicGrid initial={filtradas.slice(0, PAGE)} total={filtradas.length} filtro={{ comunidad }} />
       ) : (
-        <p className="text-center py-20 text-gray-500">Aún no hay clínicas listadas en {comunidad}.</p>
+        <p className="text-center py-20 text-gray-500">Aún no hay clínicas listadas en {nombreComunidad(comunidad)}.</p>
       )}
 
-      <CitySeoContent lugarDisplay={comunidad} total={filtradas.length} count24h={count24h} topEsp={topEsp} />
+      <CitySeoContent lugarDisplay={nombreComunidad(comunidad)} total={filtradas.length} count24h={count24h} topEsp={topEsp} />
     </div>
   )
 }

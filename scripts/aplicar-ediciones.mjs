@@ -53,11 +53,14 @@ for (const ed of pendientes) {
     if (ciudadNueva) {
       const { rows: [ciudad] } = await db.query(
         'SELECT id FROM ciudades WHERE slug = $1 OR lower(nombre) = lower($2) LIMIT 1', [slugify(ciudadNueva), ciudadNueva])
-      if (!ciudad) throw new Error(`la ciudad "${ciudadNueva}" no está en la tabla ciudades. Añádela (o pídeselo a Claude) y vuelve a guardar la fila, que sigue aprobada.`)
+      if (!ciudad) throw new Error(`la ciudad "${ciudadNueva}" no está en la tabla ciudades. Créala en NocoDB (tabla ciudades: nombre, slug y comunidad; la web la añade sola) o pídeselo a Claude, y vuelve a guardar la fila, que sigue aprobada.`)
       ciudadId = ciudad.id
       poner('ciudad_id', ciudadId)
     }
     if (ed.verificar) poner('verificada', true)
+    // «Retirar la ficha» (la clínica ha cerrado…): se oculta de la web, sin borrar nada.
+    // Para volver a mostrarla, desmarca «oculta» en la clínica.
+    if (cambios.retirar === true) poner('oculta', true)
 
     // Nueva dirección o ciudad: nuevas coordenadas (antes de abrir la transacción)
     let avisoCoordenadas = null

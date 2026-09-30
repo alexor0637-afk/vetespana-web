@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from '@/components/Enlace'
 import { notFound } from 'next/navigation'
 import { searchClinics } from '@/lib/datos'
-import { CIUDAD_DISPLAY } from '@/types/clinic'
+import { CIUDAD_DISPLAY, nombreComunidad } from '@/types/clinic'
 import { CIUDAD_POR_SLUG, ciudadSlug } from '@/lib/ciudad-slug'
 import { cityFacts, clinicasVeterinarias } from '@/lib/city-content'
 import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `Veterinarios en ${display}${n ? `: ${clinicasVeterinarias(n)}` : ''}`,
     description: n
       ? `${clinicasVeterinarias(n)} en ${display}: veterinario cercano, urgencias 24h, especialidades, horarios, teléfono y reseñas. Encuentra tu clínica de confianza.`
-      : `Clínicas veterinarias en ${display}: todavía no tenemos ninguna listada. Consulta las de ${entry.comunidad} o añade tu clínica gratis.`,
+      : `Clínicas veterinarias en ${display}: todavía no tenemos ninguna listada. Consulta las de ${nombreComunidad(entry.comunidad)} o añade tu clínica gratis.`,
     ruta: `/veterinarios/${slug}`,
     // Sin clínicas es una página vacía: fuera de Google (y del sitemap) hasta que tenga alguna
     indexar: n > 0,
@@ -63,7 +63,7 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
         </Link>
         <span>/</span>
         <Link href={urlComunidad} className="hover:text-teal-600">
-          {comunidad}
+          {nombreComunidad(comunidad)}
         </Link>
         <span>/</span>
         <span className="text-gray-600">{display}</span>
@@ -91,7 +91,7 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
           <p className="text-sm">
             Mira las{' '}
             <Link href={urlComunidad} className="text-teal-600 underline">
-              clínicas de {comunidad}
+              clínicas de {nombreComunidad(comunidad)}
             </Link>{' '}
             o las <Link href="/cerca-de-mi" className="text-teal-600 underline">más cercanas</Link>.
           </p>
@@ -130,7 +130,7 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
             '@type': 'BreadcrumbList',
             itemListElement: [
               { name: 'Inicio', item: SITIO },
-              { name: comunidad, item: SITIO + urlComunidad },
+              { name: nombreComunidad(comunidad), item: SITIO + urlComunidad },
               { name: `Veterinarios en ${display}`, item: `${SITIO}/veterinarios/${slug}` },
             ].map((m, i) => ({ '@type': 'ListItem', position: i + 1, ...m })),
           }),

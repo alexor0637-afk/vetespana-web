@@ -10,27 +10,41 @@ function norm(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
-function levenshtein(a: string, b: string): number {
-  const m = a.length, n = b.length
-  const dp = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-  )
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
-  return dp[m][n]
+// ¿Distancia de edición ≤ 1? (una letra cambiada, sobrante o que falta). En una sola
+// pasada y sin reservar memoria: la búsqueda libre lo llama miles de veces.
+function casiIgual(a: string, b: string): boolean {
+  const la = a.length, lb = b.length
+  if (Math.abs(la - lb) > 1) return false
+  let i = 0, j = 0, dif = 0
+  while (i < la && j < lb) {
+    if (a[i] === b[j]) { i++; j++; continue }
+    if (++dif > 1) return false
+    if (la > lb) i++
+    else if (la < lb) j++
+    else { i++; j++ }
+  }
+  return dif + (la - i) + (lb - j) <= 1
+}
+
+// Cada texto normalizado y partido en palabras una sola vez (los campos se repiten en
+// cada búsqueda y en cada «Ver más»)
+const normalizados = new Map<string, { texto: string; palabras: string[] }>()
+function normalizado(campo: string) {
+  let r = normalizados.get(campo)
+  if (!r) {
+    const texto = norm(campo)
+    r = { texto, palabras: texto.split(/[\s,.\-/]+/) }
+    if (normalizados.size < 50000) normalizados.set(campo, r)
+  }
+  return r
 }
 
 // true si el campo contiene la palabra (sin tildes) o hay una palabra con
 // distancia de edición ≤ 1 (tolerante a 1 typo en palabras de > 3 letras).
 function fuzzyField(field: string, word: string): boolean {
-  const f = norm(field)
-  if (f.includes(word)) return true
-  if (word.length > 3) {
-    const tokens = f.split(/[\s,.\-/]+/)
-    return tokens.some((t) => Math.abs(t.length - word.length) <= 1 && levenshtein(t, word) <= 1)
-  }
-  return false
+  const { texto, palabras } = normalizado(field)
+  if (texto.includes(word)) return true
+  return word.length > 3 && palabras.some((t) => casiIgual(t, word))
 }
 
 export interface SearchParams {
@@ -53,7 +67,7 @@ function basePriority(a: Clinic, b: Clinic): number {
 // OJO: solo con datos que también lleva el índice del navegador (lib/indice.ts), para
 // que el orden del HTML y el del «Ver más» sean el mismo.
 function completitud(c: Clinic): number {
-  // (del horario, el índice solo guarda la primera línea: se mira esa)
+  // (del horario se mira solo que tenga primera línea)
   return (c.fotoPortada ? 3 : 0) + (c.telefono ? 2 : 0) + (c.horario?.split('\n')[0] ? 2 : 0) + (c.urgencias24h ? 1 : 0)
 }
 

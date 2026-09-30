@@ -1,6 +1,6 @@
 import Link from '@/components/Enlace'
 import { PawPrint } from 'lucide-react'
-import { COMUNIDADES, CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY } from '@/types/clinic'
+import { COMUNIDADES, CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, nombreComunidad } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
 import { BotonCookies } from '@/components/Cookies'
 
@@ -33,7 +33,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-white font-semibold mb-3">Para dueños de mascotas</h4>
+            <h2 className="text-base text-white font-semibold mb-3">Para dueños de mascotas</h2>
             <ul className="space-y-2 text-sm">
               <li><Link href="/clinicas" className="hover:text-white transition-colors">Buscar clínicas veterinarias</Link></li>
               <li><Link href="/cerca-de-mi" className="hover:text-white transition-colors">Veterinario cerca de mí</Link></li>
@@ -43,7 +43,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-white font-semibold mb-3">Para clínicas</h4>
+            <h2 className="text-base text-white font-semibold mb-3">Para clínicas</h2>
             <ul className="space-y-2 text-sm">
               <li><Link href="/alta-clinica" className="hover:text-white transition-colors">Añadir mi clínica</Link></li>
             </ul>
@@ -52,7 +52,7 @@ export default function Footer() {
 
         {/* Veterinarios por ciudad — enlaces internos para SEO local */}
         <div className="border-t border-gray-800 pt-6 mb-6">
-          <h4 className="text-white font-semibold mb-3 text-sm">Clínicas veterinarias por ciudad</h4>
+          <h2 className="text-white font-semibold mb-3 text-sm">Clínicas veterinarias por ciudad</h2>
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             {CIUDADES_DESTACADAS.map((ciudad) => (
               <Link
@@ -71,7 +71,7 @@ export default function Footer() {
 
         {/* Por comunidad autónoma */}
         <div className="border-t border-gray-800 pt-6 mb-6">
-          <h4 className="text-white font-semibold mb-3 text-sm">Por comunidad autónoma</h4>
+          <h2 className="text-white font-semibold mb-3 text-sm">Por comunidad autónoma</h2>
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             {COMUNIDADES.map((comunidad) => (
               <Link
@@ -79,7 +79,7 @@ export default function Footer() {
                 href={`/comunidades/${ciudadSlug(comunidad)}`}
                 className="hover:text-white transition-colors"
               >
-                {comunidad}
+                {nombreComunidad(comunidad)}
               </Link>
             ))}
           </div>

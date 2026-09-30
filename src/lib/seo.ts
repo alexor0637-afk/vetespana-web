@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 
 export const SITIO = 'https://www.vetespana.es'
+// Título de /clinicas sin filtros (lo usan la página y el listado del navegador)
+export const TITULO_LISTADO = 'Todas las clínicas veterinarias en España'
 
 // Imagen general para redes (app/opengraph-image.tsx). Hay que ponerla en cada página
 // que define su propio openGraph: el de la página sustituye ENTERO al del layout.
@@ -21,16 +23,18 @@ interface DatosPagina {
   /** false → Google no la indexa (páginas vacías) */
   indexar?: boolean
   tipo?: 'website' | 'article'
+  /** true → el título va tal cual, sin « | VetEspaña» detrás (títulos que ya son largos) */
+  absoluto?: boolean
 }
 
 // Metadatos de una página: título, descripción, canonical y lo que se ve al compartirla
 // en WhatsApp, Facebook o X. Sin openGraph propio, la página heredaría el título y la
 // URL de la portada (así estaba: al compartir una ciudad salía la portada).
-export function metadatosPagina({ title, description, ruta, imagen, indexar = true, tipo = 'website' }: DatosPagina): Metadata {
+export function metadatosPagina({ title, description, ruta, imagen, indexar = true, tipo = 'website', absoluto = false }: DatosPagina): Metadata {
   const url = SITIO + ruta
   const foto = imagen ?? IMAGEN_REDES
   return {
-    title,
+    title: absoluto ? { absolute: title } : title,
     description,
     alternates: { canonical: url },
     openGraph: { type: tipo, locale: 'es_ES', siteName: 'VetEspaña', title, description, url, images: [foto] },
