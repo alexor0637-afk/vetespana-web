@@ -66,8 +66,9 @@ export default function PrivacidadPage() {
       <h3>5. Protección frente al spam</h3>
       <p>
         Cuando envías un formulario guardamos durante un tiempo limitado un resumen (hash) de tu dirección IP, no la
-        dirección en sí, y el número de envíos por hora, para limitar los envíos masivos. Base legal: interés
-        legítimo en la seguridad del servicio.
+        dirección en sí, y el número de envíos por hora, para limitar los envíos masivos. Además, los formularios
+        usan Cloudflare Turnstile, que analiza datos técnicos de tu navegador para comprobar que no eres un robot
+        (sin cookies de publicidad ni de seguimiento). Base legal: interés legítimo en la seguridad del servicio.
       </p>
 
       <h3>6. Estadísticas de visitas</h3>

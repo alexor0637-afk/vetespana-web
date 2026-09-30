@@ -4,6 +4,7 @@ import { useId, useState } from 'react'
 import { Star } from 'lucide-react'
 import { URL_BUZON } from '@/lib/formulario-clinica'
 import { TITULAR } from '@/lib/legal'
+import Turnstile from '@/components/Turnstile'
 
 interface Props {
   clinicId: string
@@ -23,7 +24,17 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
   const [website, setWebsite] = useState('') // honeypot anti-bots: debe quedar vacío
   const [estado, setEstado] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
   const [error, setError] = useState('')
+  // Token anti-robots (Turnstile) y nº de intento: tras un fallo se pide un token nuevo
+  const [token, setToken] = useState('')
+  const [intento, setIntento] = useState(0)
   const id = useId()
+
+  const fallo = (mensaje: string) => {
+    setError(mensaje)
+    setEstado('error')
+    setToken('')
+    setIntento((i) => i + 1)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -40,6 +51,11 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
       setEstado('error')
       return
     }
+    if (!token) {
+      setError('Espera un momento: estamos comprobando que no eres un robot.')
+      setEstado('error')
+      return
+    }
 
     setEstado('loading')
     setError('')
@@ -47,7 +63,7 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
       const res = await fetch(`${URL_BUZON}/resenas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clinicaId: clinicId, slug: clinicSlug, clinicaNombre: clinicNombre, nombreUsuario: nombre, puntuacion, comentario, website }),
+        body: JSON.stringify({ clinicaId: clinicId, slug: clinicSlug, clinicaNombre: clinicNombre, nombreUsuario: nombre, puntuacion, comentario, website, turnstile: token }),
       })
       if (res.ok) {
         setEstado('ok')
@@ -55,16 +71,14 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
       }
       // El buzón explica el motivo (p. ej. demasiados envíos seguidos): se muestra tal cual
       const cuerpo = (await res.json().catch(() => null)) as { error?: string } | null
-      setError(
+      fallo(
         cuerpo?.error ??
           (res.status === 429
             ? 'Has enviado varias reseñas seguidas. Inténtalo de nuevo dentro de un rato.'
             : 'Ha ocurrido un error. Inténtalo de nuevo.'),
       )
-      setEstado('error')
     } catch {
-      setError('No se ha podido enviar: revisa tu conexión e inténtalo de nuevo.')
-      setEstado('error')
+      fallo('No se ha podido enviar: revisa tu conexión e inténtalo de nuevo.')
     }
   }
 
@@ -155,6 +169,8 @@ export default function ReviewForm({ clinicId, clinicSlug, clinicNombre }: Props
         />
         <p className="text-xs text-gray-600 mt-1 text-right">{comentario.length}/500</p>
       </div>
+
+      <Turnstile key={intento} onToken={setToken} />
 
       {estado === 'error' && error && (
         <p role="alert" className="text-sm text-red-700">{error}</p>

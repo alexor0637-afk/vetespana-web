@@ -6,6 +6,7 @@ import CitySelect from '@/components/CitySelect'
 import HorarioEditor from '@/components/HorarioEditor'
 import { ESPECIALIDADES, ESPECIALIDAD_EMOJI } from '@/types/clinic'
 import { TITULAR } from '@/lib/legal'
+import Turnstile from '@/components/Turnstile'
 import { URL_BUZON, horarioATexto, horarioTipico, reducirFoto, textoAHorario } from '@/lib/formulario-clinica'
 
 /** Lo que el formulario necesita de una clínica existente (modo edición) */
@@ -95,6 +96,9 @@ export default function FormularioClinica({ modo, clinica }: Props) {
   const [contacto, setContacto] = useState({ nombre: '', cargo: '', email: '', telefono: '' })
   const [mensaje, setMensaje] = useState('')
   const [acepta, setAcepta] = useState(false)
+  // Token anti-robots (Turnstile) y nº de intento: tras un fallo se pide un token nuevo
+  const [token, setToken] = useState('')
+  const [intento, setIntento] = useState(0)
   const [trampa, setTrampa] = useState('') // campo oculto: solo lo rellenan los robots
   const [estado, setEstado] = useState<'editando' | 'enviando' | 'enviado'>('editando')
   const [error, setError] = useState('')
@@ -173,6 +177,10 @@ export default function FormularioClinica({ modo, clinica }: Props) {
       setError(problema)
       return
     }
+    if (!token) {
+      setError('Espera un momento: estamos comprobando que no eres un robot.')
+      return
+    }
     setError('')
     setEstado('enviando')
     const comun = {
@@ -185,6 +193,7 @@ export default function FormularioClinica({ modo, clinica }: Props) {
       mensaje: mensaje.trim(),
       acepta,
       website: trampa,
+      turnstile: token,
       ms: Date.now() - inicio.current,
       foto: foto ? { datos: foto.datos, tipo: foto.tipo } : null,
     }
@@ -216,6 +225,9 @@ export default function FormularioClinica({ modo, clinica }: Props) {
         ? err.message
         : 'No se ha podido enviar. Revisa tu conexión y prueba otra vez.')
       setEstado('editando')
+      // El token anti-robots ya se ha gastado: se pide otro para el siguiente intento
+      setToken('')
+      setIntento((i) => i + 1)
     }
   }
 
@@ -406,6 +418,8 @@ export default function FormularioClinica({ modo, clinica }: Props) {
           <a href="/privacidad" target="_blank" rel="noopener" className="text-teal-700 underline">política de privacidad</a>).
         </span>
       </label>
+
+      <Turnstile key={intento} onToken={setToken} />
 
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 

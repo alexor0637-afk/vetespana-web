@@ -13,4 +13,4 @@ export const TITULAR = {
 export const GA_ID = 'G-P4QGVKD4BN'
 
 // Fecha de la última revisión de los textos legales
-export const LEGAL_ACTUALIZADO = '29 de septiembre de 2026'
+export const LEGAL_ACTUALIZADO = '30 de septiembre de 2026'

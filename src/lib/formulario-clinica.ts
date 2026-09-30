@@ -4,6 +4,10 @@
 /** Buzón de Cloudflare que recibe reseñas, altas y cambios (worker/index.ts) */
 export const URL_BUZON = process.env.NEXT_PUBLIC_URL_BUZON ?? 'https://buzon.vetespana.es'
 
+// Clave pública del widget anti-robots de Cloudflare Turnstile («VetEspaña formularios»,
+// para vetespana.es y www). La clave secreta es un secreto del Worker (TURNSTILE_SECRET).
+export const TURNSTILE_SITEKEY = '0x4AAAAAAFJ_ln6ULfKHZEPj'
+
 export const DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'] as const
 
 export type ModoDia = 'abierto' | 'cerrado' | '24h'

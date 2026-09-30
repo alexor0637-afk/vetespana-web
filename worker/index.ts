@@ -31,6 +31,7 @@ interface Env {
   AVISOS?: SendEmail
   AVISOS_DESTINO?: string
   AVISO_TOKEN?: string
+  TURNSTILE_SECRET?: string
 }
 interface Contexto {
   waitUntil(promesa: Promise<unknown>): void
@@ -129,6 +130,27 @@ async function sha256(texto: string): Promise<string> {
   return [...hash].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
+// Comprobación anti-robots (Cloudflare Turnstile): el navegador manda un token de un solo
+// uso y aquí se valida con Cloudflare. Sin secreto configurado no se exige (no rompe nada).
+async function turnstileValido(env: Env, token: unknown, request: Request): Promise<boolean> {
+  if (!env.TURNSTILE_SECRET) return true
+  if (typeof token !== 'string' || !token || token.length > 2048) return false
+  const cuerpo = new FormData()
+  cuerpo.append('secret', env.TURNSTILE_SECRET)
+  cuerpo.append('response', token)
+  const ip = request.headers.get('cf-connecting-ip')
+  if (ip) cuerpo.append('remoteip', ip)
+  try {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: cuerpo })
+    const r = (await res.json()) as { success?: boolean; hostname?: string }
+    return r.success === true && (!r.hostname || /(^|\.)vetespana\.es$/.test(r.hostname))
+  } catch {
+    return false
+  }
+}
+
+const NO_ROBOT = 'No hemos podido comprobar que no eres un robot. Recarga la página y vuelve a intentarlo.'
+
 // Tipo real de una foto en base64 por sus primeros bytes (JPEG, PNG o WebP)
 function tipoRealFoto(datosBase64: string): string | null {
   let cabecera: string
@@ -179,6 +201,7 @@ async function recibirResena(request: Request, env: Env, ctx: Contexto): Promise
 
   // Honeypot: si el campo trampa viene relleno es un bot. Respondemos "ok" sin guardar.
   if (c.website) return json({ ok: true })
+  if (!(await turnstileValido(env, c.turnstile, request))) return json({ error: NO_ROBOT }, 403)
 
   const clinicaId = String(c.clinicaId ?? '')
   const slug = String(c.slug ?? '')
@@ -252,6 +275,7 @@ async function recibirFormulario(request: Request, env: Env, ctx: Contexto, tipo
   // Trampas para robots: campo oculto relleno o formulario rellenado en menos de 3 s.
   // Se responde "ok" sin guardar nada.
   if (c.website || Number(c.ms ?? 0) < 3000) return json({ ok: true })
+  if (!(await turnstileValido(env, c.turnstile, request))) return json({ error: NO_ROBOT }, 403)
 
   const contacto = (c.contacto && typeof c.contacto === 'object' ? c.contacto : {}) as Record<string, unknown>
   const quien = {
