@@ -1,16 +1,21 @@
-// Publicación de la web en Cloudflare: SOLO archivos estáticos (out/), sin código.
-// Las peticiones a archivos estáticos son gratis e ilimitadas. El buzón de reseñas y
-// altas es otro Worker (worker/wrangler.jsonc).
+// Publicación de la web en Cloudflare: archivos estáticos (out/). Las peticiones a archivos
+// estáticos son gratis e ilimitadas. Solo /clinicas pasa antes por un código mínimo
+// (worker/web.ts: redirige con 301 las URLs antiguas /clinicas?ciudad=…). El buzón de
+// reseñas y altas es otro Worker (worker/wrangler.jsonc).
 // Se despliega desde el servidor de casa con `npx wrangler deploy` (ver ~/homelab/vetespana-web).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vetespana-web",
   "compatibility_date": "2026-09-01",
+  "main": "worker/web.ts",
   "assets": {
     "directory": "./out",
+    "binding": "ASSETS",
     // /clinicas/x → out/clinicas/x.html ; lo que no existe → out/404.html
     "html_handling": "auto-trailing-slash",
-    "not_found_handling": "404-page"
+    "not_found_handling": "404-page",
+    // Solo /clinicas (exacta, no las fichas /clinicas/x) pasa por worker/web.ts
+    "run_worker_first": ["/clinicas"]
   },
   // Dominios propios (Cloudflare crea sus DNS y certificados). vetespana.es (sin www)
   // lo redirige a www una regla de redirección de la zona (Rules → Redirect Rules),
