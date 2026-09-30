@@ -3,6 +3,7 @@ import { getAllClinics } from '@/lib/datos'
 import { CIUDADES_POR_COMUNIDAD, COMUNIDADES } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
 import { GUIAS } from '@/data/guias'
+import { RUTA_URGENCIAS, ciudadesConPaginaUrgencias, rutaUrgenciasCiudad } from '@/lib/urgencias'
 
 // Se genera en el build como archivo estático (sitemap.xml).
 export const dynamic = 'force-static'
@@ -12,7 +13,7 @@ export const dynamic = 'force-static'
 // modificación en la base. IMPORTANTE: fecha FIJA, no `new Date()`: si cada
 // generación dijera "modificada ahora", Google acaba ignorando la señal lastmod.
 // → Al cambiar contenido general (ciudades, textos…), sube esta fecha.
-const CONTENIDO_ACTUALIZADO = new Date('2026-09-29')
+const CONTENIDO_ACTUALIZADO = new Date('2026-09-30')
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://www.vetespana.es'
@@ -68,6 +69,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }))
 
+  // Urgencias 24 horas: la de toda España y la de cada ciudad con al menos dos clínicas 24 h
+  const clinicas24h = clinicas.filter((c) => c.urgencias24h)
+  const urgenciasPages: MetadataRoute.Sitemap = [
+    { url: baseUrl + RUTA_URGENCIAS, lastModified: fecha([...new Set(clinicas24h.map((c) => c.ciudad))]), changeFrequency: 'weekly', priority: 0.8 },
+    ...(await ciudadesConPaginaUrgencias()).map((ciudad) => ({
+      url: baseUrl + rutaUrgenciasCiudad(ciudad),
+      lastModified: fecha([ciudad]),
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    })),
+  ]
+
   // Fichas individuales — el grueso del valor SEO, con su fecha real de modificación
   const clinicPages: MetadataRoute.Sitemap = clinicas.map((c) => ({
     url: `${baseUrl}/clinicas/${c.slug}`,
@@ -78,5 +91,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // NOTA: las combinaciones de filtros de /clinicas (?especialidad=, ?q=…) se excluyen
   // a propósito: se calculan en el navegador y comparten el HTML de /clinicas.
-  return [...staticPages, ...guiaPages, ...comunidadPages, ...ciudadPages, ...clinicPages]
+  return [...staticPages, ...guiaPages, ...comunidadPages, ...ciudadPages, ...urgenciasPages, ...clinicPages]
 }

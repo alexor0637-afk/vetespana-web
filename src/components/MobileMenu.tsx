@@ -53,7 +53,7 @@ export default function MobileMenu() {
             <Link href="/cerca-de-mi" onClick={close} className="py-3.5 border-b border-gray-50 flex items-center gap-1.5">
               <Navigation size={16} className="fill-current" /> Cerca de mí
             </Link>
-            <Link href="/clinicas?urgencias=1" onClick={close} className="py-3.5 border-b border-gray-50 flex items-center gap-1.5">
+            <Link href="/urgencias-veterinarias-24h" onClick={close} className="py-3.5 border-b border-gray-50 flex items-center gap-1.5">
               <Zap size={16} className="text-red-600" /> Urgencias 24h
             </Link>
             <Link href="/guias" onClick={close} className="py-3.5 border-b border-gray-50">

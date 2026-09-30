@@ -9,6 +9,7 @@ import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
 import ClinicGrid from '@/components/ClinicGrid'
 import SearchBar from '@/components/SearchBar'
 import CitySeoContent from '@/components/CitySeoContent'
+import { MINIMO_CIUDAD_24H, rutaUrgenciasCiudad } from '@/lib/urgencias'
 
 // URL limpia de ciudad: el activo de SEO local ("veterinario en {ciudad}").
 // Se genera en el build una página por ciudad.
@@ -81,6 +82,16 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
           {filtradas.length} clínica{filtradas.length !== 1 ? 's' : ''}
         </span>
       </div>
+
+      {/* Con dos o más clínicas de 24 h, la ciudad tiene su página de urgencias */}
+      {count24h >= MINIMO_CIUDAD_24H && (
+        <Link
+          href={rutaUrgenciasCiudad(ciudad)}
+          className="mb-5 inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+        >
+          🚨 Urgencias 24 horas en {display} ({count24h})
+        </Link>
+      )}
 
       {filtradas.length > 0 ? (
         <ClinicGrid initial={filtradas.slice(0, PAGE)} total={filtradas.length} filtro={{ ciudad }} />

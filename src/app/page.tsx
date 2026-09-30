@@ -60,7 +60,7 @@ export default async function HomePage() {
       <section className="max-w-6xl mx-auto px-4 pt-10 pb-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Urgencias 24h', href: '/clinicas?urgencias=1', icon: '🚨', desc: 'Atención inmediata' },
+            { label: 'Urgencias 24h', href: '/urgencias-veterinarias-24h', icon: '🚨', desc: 'Atención inmediata' },
             { label: 'Especialistas en perros', href: '/clinicas?especialidad=Perros', icon: '🐕', desc: 'Clínicas especializadas' },
             { label: 'Especialistas en gatos', href: '/clinicas?especialidad=Gatos', icon: '🐈', desc: 'Felinos y más' },
             { label: 'Animales exóticos', href: '/clinicas?especialidad=Animales+ex%C3%B3ticos', icon: '🦜', desc: 'Reptiles, aves y más' },

@@ -54,7 +54,7 @@ export const GUIAS: Guia[] = [
         h: 'No elijas solo por cercanía',
         parrafos: [
           'La clínica más cercana no siempre es la mejor para tu mascota, pero la distancia sí importa: en una urgencia, cada minuto cuenta. Lo ideal es tener identificada una clínica de confianza cerca de casa y, además, saber dónde está el hospital veterinario con urgencias 24h más próximo.',
-          'Una buena estrategia es combinar ambas cosas: busca [clínicas cerca de ti](/cerca-de-mi) para el día a día (vacunas, revisiones, consultas) y ten localizado un centro de [urgencias 24h](/clinicas?urgencias=1) por si surge un imprevisto fuera de horario.',
+          'Una buena estrategia es combinar ambas cosas: busca [clínicas cerca de ti](/cerca-de-mi) para el día a día (vacunas, revisiones, consultas) y ten localizado un centro de [urgencias 24h](/urgencias-veterinarias-24h) por si surge un imprevisto fuera de horario.',
         ],
       },
       {
@@ -159,7 +159,7 @@ export const GUIAS: Guia[] = [
         h: 'Cómo encontrar urgencias 24h cerca de ti',
         parrafos: [
           'No esperes a la emergencia para buscar. Ten localizado de antemano el centro de urgencias más cercano y guarda su teléfono en el móvil.',
-          'En VetEspaña puedes filtrar directamente las [clínicas con urgencias 24h](/clinicas?urgencias=1) y también ver las [clínicas más cercanas a tu ubicación](/cerca-de-mi) ordenadas por distancia. Te recomendamos hacerlo hoy mismo, con calma, y apuntar el contacto donde lo tengas a mano.',
+          'En VetEspaña puedes filtrar directamente las [clínicas con urgencias 24h](/urgencias-veterinarias-24h) y también ver las [clínicas más cercanas a tu ubicación](/cerca-de-mi) ordenadas por distancia. Te recomendamos hacerlo hoy mismo, con calma, y apuntar el contacto donde lo tengas a mano.',
         ],
       },
       {
@@ -312,7 +312,7 @@ export const GUIAS: Guia[] = [
       {
         h: 'Compara antes de decidir',
         parrafos: [
-          'Para tratamientos no urgentes, merece la pena comparar un par de clínicas. En VetEspaña puedes ver la información de contacto y especialidades de [clínicas veterinarias de toda España](/clinicas) y llamar para pedir presupuesto. Y para imprevistos, ten siempre localizadas las [urgencias 24h cercanas](/clinicas?urgencias=1).',
+          'Para tratamientos no urgentes, merece la pena comparar un par de clínicas. En VetEspaña puedes ver la información de contacto y especialidades de [clínicas veterinarias de toda España](/clinicas) y llamar para pedir presupuesto. Y para imprevistos, ten siempre localizadas las [urgencias 24h cercanas](/urgencias-veterinarias-24h).',
         ],
       },
     ],
@@ -393,7 +393,7 @@ export const GUIAS: Guia[] = [
       {
         h: 'No lo dejes pasar',
         parrafos: [
-          'La falta de apetito es de los síntomas más inespecíficos pero también más útiles: el cuerpo avisa de que algo no va bien. Ante la duda, una consulta a tiempo es siempre más barata y segura que esperar. Busca [tu veterinario](/clinicas) o, si es fuera de horario y hay síntomas graves, un centro de [urgencias 24h](/clinicas?urgencias=1).',
+          'La falta de apetito es de los síntomas más inespecíficos pero también más útiles: el cuerpo avisa de que algo no va bien. Ante la duda, una consulta a tiempo es siempre más barata y segura que esperar. Busca [tu veterinario](/clinicas) o, si es fuera de horario y hay síntomas graves, un centro de [urgencias 24h](/urgencias-veterinarias-24h).',
         ],
       },
     ],
@@ -456,7 +456,7 @@ export const GUIAS: Guia[] = [
       {
         h: 'Qué hacer si come algo prohibido',
         parrafos: [
-          'Si tu mascota ha comido algo de esta lista, no esperes a ver "si le pasa algo". Llama de inmediato a tu veterinario o a un centro de [urgencias 24h](/clinicas?urgencias=1) e indícale qué ha comido, cuánta cantidad y hace cuánto.',
+          'Si tu mascota ha comido algo de esta lista, no esperes a ver "si le pasa algo". Llama de inmediato a tu veterinario o a un centro de [urgencias 24h](/urgencias-veterinarias-24h) e indícale qué ha comido, cuánta cantidad y hace cuánto.',
           'Muy importante: no le provoques el vómito por tu cuenta — en algunos tóxicos empeora la situación. Si puedes, guarda el envase o una foto del producto para que el veterinario sepa exactamente a qué se enfrenta.',
         ],
       },
@@ -531,7 +531,7 @@ export const GUIAS: Guia[] = [
           'Refréscalo con agua fresca (NO helada) en patas, ingles, barriga y cuello.',
           'Ofrécele agua para beber, sin obligarle.',
           'No lo cubras con toallas mojadas muy frías ni uses hielo: un enfriamiento brusco es contraproducente.',
-          'Llama y ve a un veterinario o a [urgencias 24h](/clinicas?urgencias=1) aunque parezca recuperarse: el daño interno no siempre se ve.',
+          'Llama y ve a un veterinario o a [urgencias 24h](/urgencias-veterinarias-24h) aunque parezca recuperarse: el daño interno no siempre se ve.',
         ],
       },
       {
