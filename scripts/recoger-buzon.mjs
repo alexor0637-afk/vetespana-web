@@ -307,11 +307,21 @@ if (!filas.length) {
 
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL_ESCRITURA })
 await db.connect()
-let resenas = 0, altas = 0, ediciones = 0, descartadas = 0, fallos = 0
+// ¿Ya se recogió en una vuelta anterior? (pasa si falló el borrado en D1): entonces no se
+// vuelve a guardar nada (ni su foto), solo se borra del buzón
+const TABLA = { resena: 'resenas', alta: 'altas', edicion: 'ediciones' }
+async function yaRecogida(fila) {
+  const tabla = TABLA[fila.tipo]
+  return Boolean(tabla) && (await db.query(`SELECT 1 FROM ${tabla} WHERE buzon_id = $1`, [fila.id])).rowCount > 0
+}
+
+let resenas = 0, altas = 0, ediciones = 0, descartadas = 0, repetidas = 0, fallos = 0
 for (const fila of filas) {
   try {
     const datos = JSON.parse(fila.datos)
-    if (fila.tipo === 'resena') {
+    if (await yaRecogida(fila)) {
+      repetidas++
+    } else if (fila.tipo === 'resena') {
       const aviso = avisos([await avisoSlug(datos.clinicaId, datos.slug), await avisoResena(datos.clinicaId, datos.huella, datos.nombreUsuario)])
       const r = await db.query(
         `INSERT INTO resenas (clinica_id, nombre_usuario, puntuacion, comentario, fecha, aprobada, buzon_id, huella, aviso)
@@ -320,7 +330,7 @@ for (const fila of filas) {
         [datos.clinicaId, datos.nombreUsuario, datos.puntuacion, datos.comentario, fila.recibido.slice(0, 10),
          fila.id, texto(datos.huella), aviso])
       if (r.rowCount) resenas++
-      else descartadas++ // la clínica ya no existe (o ya se había recogido)
+      else descartadas++ // la clínica ya no existe
     } else if (fila.tipo === 'alta' && datos.origen === 'web') {
       const c = datos.clinica ?? {}
       const quien = datos.contacto ?? {}
@@ -348,10 +358,11 @@ for (const fila of filas) {
       }
       await db.query(
         `INSERT INTO altas (recibida, nombre, ciudad, direccion, telefono, email, web, whatsapp, redes_sociales,
-                            especialidades, horario, urgencias_24h, descripcion, foto_archivo, datos)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+                            especialidades, horario, urgencias_24h, descripcion, foto_archivo, datos, buzon_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+         ON CONFLICT (buzon_id) DO NOTHING`,
         [fila.recibido, c.nombre, c.ciudad, c.direccion, c.telefono, c.email, c.web, c.whatsapp, c.redes,
-         c.especialidades, c.horario, c.urgencias ? /^s[ií]/i.test(c.urgencias) : null, c.descripcion, foto, datos])
+         c.especialidades, c.horario, c.urgencias ? /^s[ií]/i.test(c.urgencias) : null, c.descripcion, foto, datos, fila.id])
       altas++
     } else if (fila.tipo === 'edicion') {
       const { rows: [actual] } = await db.query(
@@ -385,4 +396,4 @@ for (const fila of filas) {
   }
 }
 await db.end()
-console.log(`Buzón: ${resenas} reseñas, ${altas} altas y ${ediciones} ediciones recogidas${descartadas ? ` · ${descartadas} descartadas (clínica inexistente)` : ''}${fallos ? ` · ${fallos} con error (se reintentarán)` : ''}`)
+console.log(`Buzón: ${resenas} reseñas, ${altas} altas y ${ediciones} ediciones recogidas${descartadas ? ` · ${descartadas} descartadas (clínica inexistente)` : ''}${repetidas ? ` · ${repetidas} ya estaban recogidas (solo se borran del buzón)` : ''}${fallos ? ` · ${fallos} con error (se reintentarán)` : ''}`)

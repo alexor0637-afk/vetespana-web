@@ -147,7 +147,13 @@ export default function CitySelect({
   // Opción resaltada (la que elegiría Enter): se anuncia con aria-activedescendant
   const activa = open && (query.trim() || navegando) && results[highlight] ? highlight : -1
   const idOpcion = (i: number) => `${id}-opcion-${i}`
-  const aviso = !open || !query.trim() ? '' : results.length === 0 ? 'Ninguna ciudad coincide' : results.length === 1 ? '1 ciudad' : `${results.length === 60 ? 'Más de 60' : results.length} ciudades`
+  // Sin resultados: ¿es una ciudad que existe pero aún no tiene clínicas? (solo en el buscador)
+  const q = norm(query.trim())
+  const vacia = open && q && !results.length && !todas && ALL_CITIES.some((c) => norm(c.display).includes(q))
+  const sinResultados = vacia
+    ? `Aún no tenemos clínicas en “${query.trim()}”: prueba con una ciudad cercana o con «Cerca de mí».`
+    : `Sin coincidencias para “${query.trim()}”`
+  const aviso = !open || !q ? '' : results.length === 0 ? sinResultados : results.length === 1 ? '1 ciudad' : `${results.length === 60 ? 'Más de 60' : results.length} ciudades`
 
   return (
     <div ref={wrapRef} className="relative">
@@ -215,7 +221,7 @@ export default function CitySelect({
             </li>
           ))}
           {results.length === 0 && (
-            <li className="px-3 py-3 text-gray-500">Sin coincidencias para “{query}”</li>
+            <li className="px-3 py-3 text-gray-500">{sinResultados}</li>
           )}
         </ul>
       )}

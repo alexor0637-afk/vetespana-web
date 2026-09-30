@@ -72,9 +72,12 @@ export default function ClinicasExplorer({ children }: { children: React.ReactNo
         .filter(Boolean)
         .join(' ')) + (texto ? ` · «${texto}»` : '')
 
+  // Título de la pestaña según los filtros. Se vuelve a poner cuando llega el resultado:
+  // al cargar la página, Next pone el suyo al terminar de hidratarse (y taparía este)
+  const listo = !!actual
   useEffect(() => {
     if (!destino) document.title = `${hayFiltros ? titulo : TITULO_LISTADO} | VetEspaña`
-  }, [hayFiltros, destino, titulo])
+  }, [hayFiltros, destino, titulo, listo])
 
   // Lo que oye quien usa lector de pantalla al cambiar un filtro
   const aviso = !hayFiltros || destino ? '' : actual?.error ? 'No se ha podido cargar el listado' : actual?.lista ? `${actual.lista.length} resultados` : 'Buscando clínicas'
