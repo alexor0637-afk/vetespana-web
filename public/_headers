@@ -17,15 +17,14 @@
 # Seguridad: solo HTTPS (HSTS, sin subdominios por prudencia), nadie puede meter la web
 # dentro de un marco de otra (clickjacking) y sin permisos de cámara/micro/pagos. La
 # geolocalización se permite a la propia web: la usa «Cerca de mí».
-# Content-Security-Policy-Report-Only: de dónde puede cargar cosas la página (una segunda
-# barrera si se colara un script). En prueba: el navegador solo avisa en la consola.
-# Terceros: Google Analytics (con permiso de cookies), Clarity (si se activa), el captcha
-# Turnstile y el buzón.
+# Content-Security-Policy: de dónde puede cargar cosas la página (una segunda barrera si
+# se colara un script). Terceros: Google Analytics (con permiso de cookies), Clarity (si
+# se activa), el captcha Turnstile y el buzón. Si se añade otro servicio, hay que ponerlo
+# aquí o el navegador lo bloqueará. (wasm-unsafe-eval: lo usan algunas extensiones.)
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000
   X-Frame-Options: SAMEORIGIN
-  Content-Security-Policy: frame-ancestors 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com https://*.clarity.ms https://challenges.cloudflare.com; connect-src 'self' https://buzon.vetespana.es https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://*.clarity.ms https://challenges.cloudflare.com; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms https://c.bing.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; manifest-src 'self'
   Permissions-Policy: camera=(), microphone=(), payment=(), usb=(), geolocation=(self)
-  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.clarity.ms https://challenges.cloudflare.com; connect-src 'self' https://buzon.vetespana.es https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://*.clarity.ms; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms https://c.bing.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; manifest-src 'self'
