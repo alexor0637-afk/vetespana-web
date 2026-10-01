@@ -48,7 +48,8 @@ export default function PrivacidadPage() {
         sociales, horario, especialidades y fotos. Los obtenemos de fuentes de acceso público (Google Maps y las webs
         de las propias clínicas) o nos los facilitan ellas, y los publicamos para que los dueños de mascotas puedan
         encontrar y contactar con una clínica. Base legal: interés legítimo (art. 6.1.f del RGPD), el de los usuarios
-        en encontrar veterinario y el de las clínicas en ser encontradas.
+        en encontrar veterinario y el de las clínicas en ser encontradas. No publicamos correos de uso personal
+        (Gmail, Hotmail y similares) salvo que la propia clínica nos los haya facilitado o confirmado.
       </p>
       <p>
         Si eres responsable de una clínica, o el profesional cuyos datos aparecen, puedes pedir que los corrijamos o

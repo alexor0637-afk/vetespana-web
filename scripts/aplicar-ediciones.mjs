@@ -58,6 +58,8 @@ for (const ed of pendientes) {
       poner('ciudad_id', ciudadId)
     }
     if (ed.verificar) poner('verificada', true)
+    // Si nos dan o confirman su email (o la verificamos), ya se puede publicar aunque sea de Gmail…
+    if ('email' in cambios || ed.verificar) poner('email_confirmado', true)
     // «Retirar la ficha» (la clínica ha cerrado…): se oculta de la web, sin borrar nada.
     // Para volver a mostrarla, desmarca «oculta» en la clínica.
     if (cambios.retirar === true) poner('oculta', true)

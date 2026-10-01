@@ -51,9 +51,10 @@ for (const a of altas) {
   try {
     await db.query('BEGIN')
     const { rows: [clinica] } = await db.query(
+      // origen 'alta' y email confirmado: los datos los da la propia clínica
       `INSERT INTO clinicas (nombre, slug, ciudad_id, direccion, telefono, whatsapp, email, web, redes_sociales,
-                             horario, descripcion, urgencias_24h, lat, lng)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+                             horario, descripcion, urgencias_24h, lat, lng, origen, email_confirmado)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'alta', $7 IS NOT NULL) RETURNING id`,
       [nombre, slug, ciudad.id, texto(a.direccion), texto(a.telefono), texto(a.whatsapp), texto(a.email),
        texto(a.web), texto(a.redes_sociales), texto(a.horario), texto(a.descripcion), a.urgencias_24h === true,
        punto?.lat ?? null, punto?.lng ?? null])

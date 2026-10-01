@@ -4,6 +4,7 @@ import { Client } from 'pg'
 import type { Clinic, ClinicPhoto, Review } from '@/types/clinic'
 import { CIUDADES_POR_COMUNIDAD, CIUDAD_DE_SLUG_BD } from '@/types/clinic'
 import { ciudadSlug } from '@/lib/ciudad-slug'
+import { correoPersonal } from '@/lib/correo'
 import { filtrarClinicas, ordenarClinicas, type SearchParams } from '@/lib/search'
 
 // Capa de datos de la web: lee la base Postgres "vetespana" SOLO al generar la web
@@ -37,6 +38,7 @@ type FilaClinica = {
   telefono: string | null
   whatsapp: string | null
   email: string | null
+  email_confirmado: boolean
   web: string | null
   redes_sociales: string | null
   horario: string | null
@@ -85,7 +87,7 @@ async function cargar(): Promise<Datos> {
   try {
     const { rows: filas } = await db.query<FilaClinica>(`
       SELECT c.id::text, c.slug, c.nombre, ci.slug AS ciudad_slug, c.direccion, c.telefono, c.whatsapp,
-             c.email, c.web, c.redes_sociales, c.horario, c.descripcion, c.urgencias_24h, c.verificada,
+             c.email, c.email_confirmado, c.web, c.redes_sociales, c.horario, c.descripcion, c.urgencias_24h, c.verificada,
              c.plan::text AS plan, c.lat, c.lng, c.updated_at AS actualizado,
              coalesce((SELECT array_agg(e.nombre ORDER BY e.id)
                          FROM clinica_especialidades ce JOIN especialidades e ON e.id = ce.especialidad_id
@@ -133,7 +135,8 @@ async function cargar(): Promise<Datos> {
         direccion: f.direccion ?? '',
         telefono: f.telefono ?? '',
         web: f.web ?? undefined,
-        email: f.email ?? undefined,
+        // Los correos personales (Gmail, Hotmail…) solo si la clínica los ha confirmado
+        email: f.email && (f.email_confirmado || !correoPersonal(f.email)) ? f.email : undefined,
         whatsapp: f.whatsapp ?? undefined,
         redesSociales: f.redes_sociales ?? undefined,
         especialidades: f.especialidades,
