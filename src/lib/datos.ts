@@ -39,6 +39,7 @@ type FilaClinica = {
   whatsapp: string | null
   email: string | null
   email_confirmado: boolean
+  osm_id: string | null
   web: string | null
   redes_sociales: string | null
   horario: string | null
@@ -87,7 +88,7 @@ async function cargar(): Promise<Datos> {
   try {
     const { rows: filas } = await db.query<FilaClinica>(`
       SELECT c.id::text, c.slug, c.nombre, ci.slug AS ciudad_slug, c.direccion, c.telefono, c.whatsapp,
-             c.email, c.email_confirmado, c.web, c.redes_sociales, c.horario, c.descripcion, c.urgencias_24h, c.verificada,
+             c.email, c.email_confirmado, c.osm_id, c.web, c.redes_sociales, c.horario, c.descripcion, c.urgencias_24h, c.verificada,
              c.plan::text AS plan, c.lat, c.lng, c.updated_at AS actualizado,
              coalesce((SELECT array_agg(e.nombre ORDER BY e.id)
                          FROM clinica_especialidades ce JOIN especialidades e ON e.id = ce.especialidad_id
@@ -151,6 +152,7 @@ async function cargar(): Promise<Datos> {
         lat: f.lat ?? undefined,
         lng: f.lng ?? undefined,
         actualizado: f.actualizado.toISOString(),
+        osmId: f.osm_id ?? undefined,
       }
     })
 

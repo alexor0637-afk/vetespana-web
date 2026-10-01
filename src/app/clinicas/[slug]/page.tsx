@@ -544,6 +544,26 @@ export default async function ClinicaPage({ params }: Props) {
                 )}
               </div>
 
+              {/* Ficha con datos de OpenStreetMap: atribución obligatoria (licencia ODbL) */}
+              {clinic.osmId && (
+                <p className="mt-4 text-xs text-gray-500">
+                  Datos de{' '}
+                  <a
+                    href={`https://www.openstreetmap.org/${clinic.osmId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-teal-700"
+                  >
+                    OpenStreetMap
+                  </a>{' '}
+                  © colaboradores de OpenStreetMap, con licencia{' '}
+                  <a href="https://opendatacommons.org/licenses/odbl/" target="_blank" rel="noopener noreferrer" className="underline hover:text-teal-700">
+                    ODbL
+                  </a>
+                  . ¿Es tu clínica? Puedes completar o corregir sus datos.
+                </p>
+              )}
+
               {/* Botones de acción */}
               <div className="mt-5 space-y-2">
                 {clinic.telefono && (

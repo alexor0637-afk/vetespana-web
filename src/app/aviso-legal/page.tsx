@@ -48,6 +48,13 @@ export default function AvisoLegalPage() {
         Si la ficha de tu clínica tiene datos incorrectos, puedes pedir que los corrijamos con el botón «¿Es tu
         clínica?» de la propia ficha, o pedir que la retiremos escribiendo a {correo}.
       </p>
+      <p>
+        Parte de las fichas usan datos de <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>{' '}
+        (© colaboradores de OpenStreetMap), que se indican en cada una. Esos datos están disponibles bajo la{' '}
+        <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer">Open Database License (ODbL)</a>, y
+        las fichas que los usan, tal como las publicamos, se pueden descargar con esa misma licencia en{' '}
+        <a href="/datos/openstreetmap-veterinarias.json">/datos/openstreetmap-veterinarias.json</a>.
+      </p>
 
       <h2>Opiniones de los usuarios</h2>
       <p>

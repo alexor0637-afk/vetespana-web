@@ -40,6 +40,8 @@ export interface Clinic {
   lng?: number
   /** Última modificación en la base (ISO), para el lastmod del sitemap */
   actualizado?: string
+  /** Datos sacados de OpenStreetMap: elemento de OSM (p. ej. node/123), para atribuirlos (ODbL) */
+  osmId?: string
 }
 
 export interface Review {
