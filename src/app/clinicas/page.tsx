@@ -1,12 +1,12 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import { searchClinics } from '@/lib/datos'
-import ClinicGrid from '@/components/ClinicGrid'
-import FilterBar, { FilterBarVacia } from '@/components/FilterBar'
-import SearchBar, { SearchBarDesdeUrl } from '@/components/SearchBar'
-import ClinicasExplorer from '@/components/ClinicasExplorer'
-import EsqueletoListado from '@/components/EsqueletoListado'
-import { metadatosPagina, TITULO_LISTADO } from '@/lib/seo'
+import { searchClinics } from '@/utilidades/base-de-datos'
+import CuadriculaClinicas from '@/componentes/clinicas/CuadriculaClinicas'
+import BarraFiltros, { BarraFiltrosVacia } from '@/componentes/busqueda/BarraFiltros'
+import Buscador, { BuscadorDesdeUrl } from '@/componentes/busqueda/Buscador'
+import ExploradorClinicas from '@/componentes/clinicas/ExploradorClinicas'
+import EsqueletoListado from '@/componentes/clinicas/EsqueletoListado'
+import { metadatosPagina, TITULO_LISTADO } from '@/utilidades/seo'
 
 // Página estática. Los filtros (?especialidad=, ?urgencias=1, ?q=…) se aplican en
 // el navegador sobre el índice de clínicas; ?ciudad= y ?comunidad= solas redirigen
@@ -22,7 +22,7 @@ const PAGE = 24
 
 // Se ejecuta antes de pintar: si la URL trae filtros, el listado general del HTML no es
 // el que se busca, así que se oculta y se enseña el esqueleto hasta que filtre el navegador
-// (ClinicasExplorer quita este estilo al arrancar).
+// (ExploradorClinicas quita este estilo al arrancar).
 const OCULTAR_SI_HAY_FILTROS =
   "if(/[?&](ciudad|comunidad|especialidad|urgencias|q|orden)=/.test(location.search)){var s=document.createElement('style');s.id='estilo-filtros';s.textContent='#lista-general{display:none}#esqueleto-listado{display:block}';document.head.appendChild(s)}"
 
@@ -36,7 +36,7 @@ export default async function ClinicasPage() {
         <h1 className="text-2xl font-bold text-gray-900">{TITULO_LISTADO}</h1>
         <span className="text-sm text-gray-500">{todas.length} resultados</span>
       </div>
-      <ClinicGrid initial={todas.slice(0, PAGE)} total={todas.length} filtro={{}} />
+      <CuadriculaClinicas initial={todas.slice(0, PAGE)} total={todas.length} filtro={{}} />
     </>
   )
 
@@ -46,15 +46,15 @@ export default async function ClinicasPage() {
 
       {/* Búsqueda */}
       <div className="mb-6">
-        <Suspense fallback={<SearchBar />}>
-          <SearchBarDesdeUrl />
+        <Suspense fallback={<Buscador />}>
+          <BuscadorDesdeUrl />
         </Suspense>
       </div>
 
       {/* Filtros */}
       <div className="mb-6">
-        <Suspense fallback={<FilterBarVacia />}>
-          <FilterBar />
+        <Suspense fallback={<BarraFiltrosVacia />}>
+          <BarraFiltros />
         </Suspense>
       </div>
 
@@ -66,7 +66,7 @@ export default async function ClinicasPage() {
           </>
         }
       >
-        <ClinicasExplorer>{listaGeneral}</ClinicasExplorer>
+        <ExploradorClinicas>{listaGeneral}</ExploradorClinicas>
       </Suspense>
     </div>
   )

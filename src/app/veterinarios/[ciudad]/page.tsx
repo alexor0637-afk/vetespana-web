@@ -1,15 +1,15 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
+import Link from '@/componentes/estructura/Enlace'
 import { notFound } from 'next/navigation'
-import { searchClinics } from '@/lib/datos'
-import { CIUDAD_DISPLAY, nombreComunidad } from '@/types/clinic'
-import { CIUDAD_POR_SLUG, ciudadSlug } from '@/lib/ciudad-slug'
-import { cityFacts, clinicasVeterinarias } from '@/lib/city-content'
-import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
-import ClinicGrid from '@/components/ClinicGrid'
-import SearchBar from '@/components/SearchBar'
-import CitySeoContent from '@/components/CitySeoContent'
-import { MINIMO_CIUDAD_24H, rutaUrgenciasCiudad } from '@/lib/urgencias'
+import { searchClinics } from '@/utilidades/base-de-datos'
+import { CIUDAD_DISPLAY, nombreComunidad } from '@/tipos/clinica'
+import { CIUDAD_POR_SLUG, ciudadSlug } from '@/utilidades/ciudad-slug'
+import { cityFacts, clinicasVeterinarias } from '@/utilidades/contenido-ciudad'
+import { SITIO, jsonLdSeguro, metadatosPagina } from '@/utilidades/seo'
+import CuadriculaClinicas from '@/componentes/clinicas/CuadriculaClinicas'
+import Buscador from '@/componentes/busqueda/Buscador'
+import TextoSeoCiudad from '@/componentes/clinicas/TextoSeoCiudad'
+import { MINIMO_CIUDAD_24H, rutaUrgenciasCiudad } from '@/utilidades/urgencias'
 
 // URL limpia de ciudad: el activo de SEO local ("veterinario en {ciudad}").
 // Se genera en el build una página por ciudad.
@@ -72,7 +72,7 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
 
       {/* Búsqueda */}
       <div className="mb-6">
-        <SearchBar initialCiudad={ciudad} />
+        <Buscador initialCiudad={ciudad} />
       </div>
 
       {/* Título SEO orientado a "veterinarios en {ciudad}" */}
@@ -94,7 +94,7 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
       )}
 
       {filtradas.length > 0 ? (
-        <ClinicGrid initial={filtradas.slice(0, PAGE)} total={filtradas.length} filtro={{ ciudad }} />
+        <CuadriculaClinicas initial={filtradas.slice(0, PAGE)} total={filtradas.length} filtro={{ ciudad }} />
       ) : (
         <div className="text-center py-20 text-gray-400">
           <div className="text-5xl mb-4">🔍</div>
@@ -126,7 +126,7 @@ export default async function VeterinariosCiudadPage({ params }: Props) {
         </nav>
       )}
 
-      <CitySeoContent
+      <TextoSeoCiudad
         lugarDisplay={display}
         total={filtradas.length}
         count24h={count24h}

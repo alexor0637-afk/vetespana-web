@@ -1,6 +1,6 @@
-import { getAllClinics } from '@/lib/datos'
-import { nombreCiudad } from '@/types/clinic'
-import { SITIO } from '@/lib/seo'
+import { getAllClinics } from '@/utilidades/base-de-datos'
+import { nombreCiudad } from '@/tipos/clinica'
+import { SITIO } from '@/utilidades/seo'
 
 // Las fichas cuyos datos salen de OpenStreetMap, tal como se publican en la web. Es una base
 // de datos derivada de OSM: su licencia (ODbL) obliga a ofrecerla con la misma licencia y con

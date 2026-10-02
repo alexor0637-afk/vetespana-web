@@ -1,5 +1,5 @@
-import { getAllClinics } from '@/lib/datos'
-import { aIndice } from '@/lib/indice'
+import { getAllClinics } from '@/utilidades/base-de-datos'
+import { aIndice } from '@/utilidades/indice'
 
 // Se genera en el build como archivo estático: /datos/clinicas.json
 // (índice compacto para los filtros, el scroll infinito y "Cerca de mí").

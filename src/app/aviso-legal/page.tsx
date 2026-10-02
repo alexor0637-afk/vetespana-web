@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
-import { metadatosPagina } from '@/lib/seo'
-import { TITULAR, LEGAL_ACTUALIZADO } from '@/lib/legal'
+import Link from '@/componentes/estructura/Enlace'
+import { metadatosPagina } from '@/utilidades/seo'
+import { TITULAR, LEGAL_ACTUALIZADO } from '@/utilidades/legal'
 
 // Aviso legal (LSSI art. 10). Sin indexar en Google: es obligatorio publicarlo, pero no
 // hace falta que el nombre y el NIF del titular salgan en los buscadores.

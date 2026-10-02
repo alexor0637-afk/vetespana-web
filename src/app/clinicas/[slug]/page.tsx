@@ -1,22 +1,22 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import Link from '@/components/Enlace'
+import Link from '@/componentes/estructura/Enlace'
 import { notFound } from 'next/navigation'
 import {
   MapPin, Phone, Globe, Mail, Clock, ShieldCheck,
   Star, Zap, MessageCircle, Share2
 } from 'lucide-react'
-import { getAllClinicSlugs, getClinicBySlug, getReviewsByClinic } from '@/lib/datos'
-import { GUIAS } from '@/data/guias'
-import ReviewForm from '@/components/ReviewForm'
-import SolicitarCambios from '@/components/SolicitarCambios'
-import BadgeBox from '@/components/BadgeBox'
-import AtribucionFoto from '@/components/AtribucionFoto'
-import { horarioSchema } from '@/lib/horario'
-import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
-import { comunidadDeCiudad, nombreCiudad, nombreComunidad } from '@/types/clinic'
-import { ciudadSlug } from '@/lib/ciudad-slug'
-import { searchClinics } from '@/lib/datos'
+import { getAllClinicSlugs, getClinicBySlug, getReviewsByClinic } from '@/utilidades/base-de-datos'
+import { GUIAS } from '@/datos/guias'
+import FormularioResena from '@/componentes/formularios/FormularioResena'
+import SolicitarCambios from '@/componentes/formularios/SolicitarCambios'
+import SelloClinica from '@/componentes/clinicas/SelloClinica'
+import AtribucionFoto from '@/componentes/clinicas/AtribucionFoto'
+import { horarioSchema } from '@/utilidades/horario'
+import { SITIO, jsonLdSeguro, metadatosPagina } from '@/utilidades/seo'
+import { comunidadDeCiudad, nombreCiudad, nombreComunidad } from '@/tipos/clinica'
+import { ciudadSlug } from '@/utilidades/ciudad-slug'
+import { searchClinics } from '@/utilidades/base-de-datos'
 
 // Web estática: se genera una ficha por clínica en el build (datos de Postgres).
 export const dynamicParams = false
@@ -52,7 +52,7 @@ function urlRedSocial(valor: string): string | null {
   }
 }
 
-// Sello «Estamos en VetEspaña» (BadgeBox): oculto por decisión del dueño (28/09/2026)
+// Sello «Estamos en VetEspaña» (SelloClinica): oculto por decisión del dueño (28/09/2026)
 // hasta nuevo aviso. Para volver a mostrarlo en las fichas, poner true.
 const MOSTRAR_SELLO = false
 
@@ -411,11 +411,11 @@ export default async function ClinicaPage({ params }: Props) {
                 <p className="text-sm text-gray-600">Todavía no hay reseñas para esta clínica. ¡Sé el primero en opinar!</p>
               )}
 
-              <ReviewForm clinicId={clinic.id} clinicSlug={clinic.slug} clinicNombre={clinic.nombre} />
+              <FormularioResena clinicId={clinic.id} clinicSlug={clinic.slug} clinicNombre={clinic.nombre} />
             </div>
 
             {/* Sello para que la clínica lo ponga en su web → backlink hacia su ficha (ver MOSTRAR_SELLO) */}
-            {MOSTRAR_SELLO && <BadgeBox slug={clinic.slug} nombre={clinic.nombre} />}
+            {MOSTRAR_SELLO && <SelloClinica slug={clinic.slug} nombre={clinic.nombre} />}
 
             {/* Guías útiles — enlaces internos hacia el contenido */}
             <div className="bg-white rounded-2xl border border-gray-200 p-5">

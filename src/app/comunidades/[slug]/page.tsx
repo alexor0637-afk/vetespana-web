@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
+import Link from '@/componentes/estructura/Enlace'
 import { notFound } from 'next/navigation'
-import { searchClinics } from '@/lib/datos'
-import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDADES, COMUNIDAD_EMOJI, nombreComunidad } from '@/types/clinic'
-import { ciudadSlug } from '@/lib/ciudad-slug'
-import { cityFacts, clinicasVeterinarias } from '@/lib/city-content'
-import { metadatosPagina } from '@/lib/seo'
-import ClinicGrid from '@/components/ClinicGrid'
-import SearchBar from '@/components/SearchBar'
-import CitySeoContent from '@/components/CitySeoContent'
+import { searchClinics } from '@/utilidades/base-de-datos'
+import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDADES, COMUNIDAD_EMOJI, nombreComunidad } from '@/tipos/clinica'
+import { ciudadSlug } from '@/utilidades/ciudad-slug'
+import { cityFacts, clinicasVeterinarias } from '@/utilidades/contenido-ciudad'
+import { metadatosPagina } from '@/utilidades/seo'
+import CuadriculaClinicas from '@/componentes/clinicas/CuadriculaClinicas'
+import Buscador from '@/componentes/busqueda/Buscador'
+import TextoSeoCiudad from '@/componentes/clinicas/TextoSeoCiudad'
 
 // Página de comunidad autónoma (URL limpia; sustituye a /clinicas?comunidad=).
 // Se genera en el build una por comunidad.
@@ -63,7 +63,7 @@ export default async function ComunidadPage({ params }: Props) {
       </nav>
 
       <div className="mb-6">
-        <SearchBar />
+        <Buscador />
       </div>
 
       <div className="flex items-baseline justify-between mb-3">
@@ -85,12 +85,12 @@ export default async function ComunidadPage({ params }: Props) {
       </div>
 
       {filtradas.length > 0 ? (
-        <ClinicGrid initial={filtradas.slice(0, PAGE)} total={filtradas.length} filtro={{ comunidad }} />
+        <CuadriculaClinicas initial={filtradas.slice(0, PAGE)} total={filtradas.length} filtro={{ comunidad }} />
       ) : (
         <p className="text-center py-20 text-gray-500">Aún no hay clínicas listadas en {nombreComunidad(comunidad)}.</p>
       )}
 
-      <CitySeoContent lugarDisplay={nombreComunidad(comunidad)} total={filtradas.length} count24h={count24h} topEsp={topEsp} />
+      <TextoSeoCiudad lugarDisplay={nombreComunidad(comunidad)} total={filtradas.length} count24h={count24h} topEsp={topEsp} />
     </div>
   )
 }

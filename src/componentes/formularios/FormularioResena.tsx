@@ -1,0 +1,196 @@
+'use client'
+
+import { useId, useState } from 'react'
+import { Star } from 'lucide-react'
+import { URL_BUZON } from '@/utilidades/formulario-clinica'
+import { TITULAR } from '@/utilidades/legal'
+import Turnstile from '@/componentes/formularios/Turnstile'
+
+interface Props {
+  clinicId: string
+  clinicSlug: string
+  clinicNombre: string
+}
+
+// Las reseñas van al buzón de Cloudflare (cloudflare/buzon/index.ts). El servidor de casa las
+// recoge cada 10 minutos y las guarda en Postgres pendientes de aprobar (en NocoDB);
+// en cuanto se aprueban, salen en la web en unos minutos.
+
+export default function FormularioResena({ clinicId, clinicSlug, clinicNombre }: Props) {
+  const [nombre, setNombre] = useState('')
+  const [puntuacion, setPuntuacion] = useState(0)
+  const [hovered, setHovered] = useState(0)
+  const [comentario, setComentario] = useState('')
+  const [website, setWebsite] = useState('') // honeypot anti-bots: debe quedar vacío
+  const [estado, setEstado] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+  const [error, setError] = useState('')
+  // Token anti-robots (Turnstile) y nº de intento: tras un fallo se pide un token nuevo
+  const [token, setToken] = useState('')
+  const [intento, setIntento] = useState(0)
+  const id = useId()
+
+  const fallo = (mensaje: string) => {
+    setError(mensaje)
+    setEstado('error')
+    setToken('')
+    setIntento((i) => i + 1)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    // Se explica qué falta (antes el botón se quedaba gris sin decir por qué)
+    const falta = !puntuacion
+      ? 'Elige una puntuación de 1 a 5 estrellas.'
+      : !nombre.trim()
+        ? 'Escribe tu nombre.'
+        : comentario.trim().length < 10
+          ? 'El comentario debe tener al menos 10 caracteres.'
+          : ''
+    if (falta) {
+      setError(falta)
+      setEstado('error')
+      return
+    }
+    if (!token) {
+      setError('Espera un momento: estamos comprobando que no eres un robot.')
+      setEstado('error')
+      return
+    }
+
+    setEstado('loading')
+    setError('')
+    try {
+      const res = await fetch(`${URL_BUZON}/resenas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clinicaId: clinicId, slug: clinicSlug, clinicaNombre: clinicNombre, nombreUsuario: nombre, puntuacion, comentario, website, turnstile: token }),
+      })
+      if (res.ok) {
+        setEstado('ok')
+        return
+      }
+      // El buzón explica el motivo (p. ej. demasiados envíos seguidos): se muestra tal cual
+      const cuerpo = (await res.json().catch(() => null)) as { error?: string } | null
+      fallo(
+        cuerpo?.error ??
+          (res.status === 429
+            ? 'Has enviado varias reseñas seguidas. Inténtalo de nuevo dentro de un rato.'
+            : 'Ha ocurrido un error. Inténtalo de nuevo.'),
+      )
+    } catch {
+      fallo('No se ha podido enviar: revisa tu conexión e inténtalo de nuevo.')
+    }
+  }
+
+  if (estado === 'ok') {
+    return (
+      <div className="bg-teal-50 border border-teal-200 rounded-xl p-5 text-center">
+        <div className="text-2xl mb-2">🐾</div>
+        <p className="font-semibold text-teal-800">¡Gracias por tu reseña!</p>
+        <p className="text-sm text-teal-600 mt-1">
+          La revisaremos en breve y la publicaremos en la ficha de {clinicNombre}.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="border-t border-gray-100 pt-5 mt-2 space-y-4">
+      <h3 className="font-semibold text-gray-800">Escribe tu reseña</h3>
+
+      {/* Honeypot: invisible para personas; los bots lo rellenan y la reseña se descarta */}
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+      />
+
+      {/* Selector de estrellas */}
+      <fieldset>
+        <legend className="text-sm text-gray-600 block mb-1.5">Puntuación *</legend>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              aria-label={`${n} estrella${n > 1 ? 's' : ''}`}
+              aria-pressed={puntuacion === n}
+              onClick={() => setPuntuacion(n)}
+              onMouseEnter={() => setHovered(n)}
+              onMouseLeave={() => setHovered(0)}
+              className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            >
+              <Star
+                size={28}
+                className={
+                  n <= (hovered || puntuacion)
+                    ? 'fill-amber-400 text-amber-400'
+                    : 'fill-gray-200 text-gray-200'
+                }
+              />
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      {/* Nombre */}
+      <div>
+        <label htmlFor={`${id}-nombre`} className="text-sm text-gray-600 block mb-1.5">Tu nombre *</label>
+        <input
+          id={`${id}-nombre`}
+          type="text"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          placeholder="Ej: María G."
+          required
+          maxLength={60}
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+        />
+      </div>
+
+      {/* Comentario */}
+      <div>
+        <label htmlFor={`${id}-comentario`} className="text-sm text-gray-600 block mb-1.5">Comentario *</label>
+        <textarea
+          id={`${id}-comentario`}
+          value={comentario}
+          onChange={(e) => setComentario(e.target.value)}
+          placeholder="Cuéntanos tu experiencia con esta clínica..."
+          required
+          minLength={10}
+          maxLength={500}
+          rows={4}
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+        />
+        <p className="text-xs text-gray-600 mt-1 text-right">{comentario.length}/500</p>
+      </div>
+
+      <Turnstile key={intento} onToken={setToken} />
+
+      {estado === 'error' && error && (
+        <p role="alert" className="text-sm text-red-700">{error}</p>
+      )}
+
+      <button
+        type="submit"
+        disabled={estado === 'loading'}
+        className="w-full bg-teal-700 hover:bg-teal-800 disabled:bg-gray-200 disabled:text-gray-500 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+      >
+        {estado === 'loading' ? 'Enviando...' : 'Enviar reseña'}
+      </button>
+      <p className="text-xs text-gray-600 text-center">
+        Las reseñas se revisan antes de publicarse. Tu nombre se mostrará junto a tu opinión.
+      </p>
+      <p className="text-xs text-gray-500 text-center">
+        Responsable: {TITULAR.nombre}. Usamos estos datos solo para moderar y publicar tu reseña; puedes pedir que la
+        retiremos o ejercer tus derechos en {TITULAR.email}. Más información en la{' '}
+        <a href="/privacidad" target="_blank" rel="noopener" className="text-teal-700 underline">política de privacidad</a>.
+      </p>
+    </form>
+  )
+}

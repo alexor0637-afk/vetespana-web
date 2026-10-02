@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
+import Link from '@/componentes/estructura/Enlace'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import React from 'react'
-import { GUIAS, getGuia } from '@/data/guias'
-import GuiaHero from '@/components/GuiaHero'
-import { clinicasMasDe } from '@/lib/datos'
-import { jsonLdSeguro, metadatosPagina } from '@/lib/seo'
+import { GUIAS, getGuia } from '@/datos/guias'
+import CabeceraGuia from '@/componentes/estructura/CabeceraGuia'
+import { clinicasMasDe } from '@/utilidades/base-de-datos'
+import { jsonLdSeguro, metadatosPagina } from '@/utilidades/seo'
 
 const BASE = 'https://www.vetespana.es'
 
@@ -102,7 +102,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
         <span className="text-gray-700">{guia.titulo}</span>
       </nav>
 
-      <GuiaHero
+      <CabeceraGuia
         img={guia.heroImg}
         alt={guia.heroAlt}
         emoji={guia.emoji}

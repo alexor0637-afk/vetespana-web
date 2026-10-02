@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
-import { BotonCookies } from '@/components/Cookies'
-import { metadatosPagina } from '@/lib/seo'
-import { GA_ID, TITULAR, LEGAL_ACTUALIZADO } from '@/lib/legal'
+import Link from '@/componentes/estructura/Enlace'
+import { BotonCookies } from '@/componentes/estructura/AvisoCookies'
+import { metadatosPagina } from '@/utilidades/seo'
+import { GA_ID, TITULAR, LEGAL_ACTUALIZADO } from '@/utilidades/legal'
 
 // Política de cookies (Guía de cookies de la AEPD). Tiene que coincidir con lo que carga
-// components/Cookies.tsx: si se añade una herramienta, añadir aquí sus cookies.
+// componentes/estructura/AvisoCookies.tsx: si se añade una herramienta, añadir aquí sus cookies.
 export const metadata: Metadata = metadatosPagina({
   title: 'Política de cookies',
   description: 'Qué cookies usa VetEspaña, para qué sirven y cómo aceptarlas, rechazarlas o cambiar tu elección.',

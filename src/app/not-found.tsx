@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
+import Link from '@/componentes/estructura/Enlace'
 
 // Título propio y fuera de Google (antes heredaba el título y la canonical de la portada)
 export const metadata: Metadata = {

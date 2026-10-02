@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
-import { searchClinics } from '@/lib/datos'
-import { COMUNIDADES, COMUNIDAD_EMOJI, comunidadDeCiudad, nombreCiudad, nombreComunidad } from '@/types/clinic'
-import { MINIMO_CIUDAD_24H, RUTA_URGENCIAS, rutaUrgenciasCiudad, urgenciasPorCiudad } from '@/lib/urgencias'
-import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
-import ClinicGrid from '@/components/ClinicGrid'
+import Link from '@/componentes/estructura/Enlace'
+import { searchClinics } from '@/utilidades/base-de-datos'
+import { COMUNIDADES, COMUNIDAD_EMOJI, comunidadDeCiudad, nombreCiudad, nombreComunidad } from '@/tipos/clinica'
+import { MINIMO_CIUDAD_24H, RUTA_URGENCIAS, rutaUrgenciasCiudad, urgenciasPorCiudad } from '@/utilidades/urgencias'
+import { SITIO, jsonLdSeguro, metadatosPagina } from '@/utilidades/seo'
+import CuadriculaClinicas from '@/componentes/clinicas/CuadriculaClinicas'
 
 // Página estática con todas las clínicas de urgencias 24 horas de España, por ciudad.
 export async function generateMetadata(): Promise<Metadata> {
@@ -86,7 +86,7 @@ export default async function UrgenciasPage() {
       </section>
 
       <h2 className="text-lg font-bold text-gray-900 mb-4">Todas las clínicas de urgencias 24 horas</h2>
-      <ClinicGrid initial={todas.slice(0, PAGE)} total={todas.length} filtro={{ urgencias: true }} />
+      <CuadriculaClinicas initial={todas.slice(0, PAGE)} total={todas.length} filtro={{ urgencias: true }} />
 
       <script
         type="application/ld+json"

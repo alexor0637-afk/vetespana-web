@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
-import { clinicasMasDe, getAllClinics, getFeaturedClinics } from '@/lib/datos'
-import { comunidadDeCiudad } from '@/types/clinic'
-import ClinicCard from '@/components/ClinicCard'
-import SearchBar from '@/components/SearchBar'
-import SpainMap from '@/components/SpainMap'
-import { GUIAS } from '@/data/guias'
+import Link from '@/componentes/estructura/Enlace'
+import { clinicasMasDe, getAllClinics, getFeaturedClinics } from '@/utilidades/base-de-datos'
+import { comunidadDeCiudad } from '@/tipos/clinica'
+import TarjetaClinica from '@/componentes/clinicas/TarjetaClinica'
+import Buscador from '@/componentes/busqueda/Buscador'
+import MapaEspana from '@/componentes/busqueda/MapaEspana'
+import { GUIAS } from '@/datos/guias'
 import { ArrowRight, ShieldCheck, Star, Zap } from 'lucide-react'
-import { jsonLdSeguro, SITIO } from '@/lib/seo'
-import { TITULAR } from '@/lib/legal'
+import { jsonLdSeguro, SITIO } from '@/utilidades/seo'
+import { TITULAR } from '@/utilidades/legal'
 
 // Datos estructurados de la web y de quién la publica (nombre del sitio y logo en Google)
 const JSON_LD = {
@@ -51,7 +51,7 @@ export default async function HomePage() {
           </p>
 
           <div className="bg-white rounded-2xl p-3 shadow-2xl">
-            <SearchBar />
+            <Buscador />
           </div>
         </div>
       </section>
@@ -83,7 +83,7 @@ export default async function HomePage() {
         <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">Busca por comunidad autónoma</h2>
         <p className="text-sm text-gray-500 mb-5 text-center">Explora las clínicas veterinarias de toda España en el mapa</p>
         <div className="bg-gradient-to-b from-teal-50/60 to-white rounded-3xl border border-gray-100 p-4 sm:p-6">
-          <SpainMap clinicasPorComunidad={clinicasPorComunidad} />
+          <MapaEspana clinicasPorComunidad={clinicasPorComunidad} />
         </div>
       </section>
 
@@ -102,7 +102,7 @@ export default async function HomePage() {
         {clinicas.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {clinicas.map((clinic, i) => (
-              <ClinicCard key={clinic.id} clinic={clinic} priority={i < 3} />
+              <TarjetaClinica key={clinic.id} clinic={clinic} priority={i < 3} />
             ))}
           </div>
         ) : (

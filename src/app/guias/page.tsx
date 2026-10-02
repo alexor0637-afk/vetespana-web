@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
+import Link from '@/componentes/estructura/Enlace'
 import Image from 'next/image'
-import { GUIAS } from '@/data/guias'
-import { clinicasMasDe } from '@/lib/datos'
-import { metadatosPagina } from '@/lib/seo'
+import { GUIAS } from '@/datos/guias'
+import { clinicasMasDe } from '@/utilidades/base-de-datos'
+import { metadatosPagina } from '@/utilidades/seo'
 
 export const metadata: Metadata = metadatosPagina({
   title: 'Guías para dueños de mascotas',

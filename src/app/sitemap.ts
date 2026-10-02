@@ -1,9 +1,9 @@
 import type { MetadataRoute } from 'next'
-import { getAllClinics } from '@/lib/datos'
-import { CIUDADES_POR_COMUNIDAD, COMUNIDADES } from '@/types/clinic'
-import { ciudadSlug } from '@/lib/ciudad-slug'
-import { GUIAS } from '@/data/guias'
-import { RUTA_URGENCIAS, ciudadesConPaginaUrgencias, rutaUrgenciasCiudad } from '@/lib/urgencias'
+import { getAllClinics } from '@/utilidades/base-de-datos'
+import { CIUDADES_POR_COMUNIDAD, COMUNIDADES } from '@/tipos/clinica'
+import { ciudadSlug } from '@/utilidades/ciudad-slug'
+import { GUIAS } from '@/datos/guias'
+import { RUTA_URGENCIAS, ciudadesConPaginaUrgencias, rutaUrgenciasCiudad } from '@/utilidades/urgencias'
 
 // Se genera en el build como archivo estático (sitemap.xml).
 export const dynamic = 'force-static'

@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og'
-import { clinicasMasDe } from '@/lib/datos'
+import { clinicasMasDe } from '@/utilidades/base-de-datos'
 
 // Imagen por defecto al compartir el sitio en redes (WhatsApp, Facebook, X…).
 // Las fichas de clínica definen la suya propia (la foto de la clínica) y la sobrescriben.

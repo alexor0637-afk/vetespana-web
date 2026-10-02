@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
-import NearbyClient from '@/components/NearbyClient'
-import { metadatosPagina } from '@/lib/seo'
+import Link from '@/componentes/estructura/Enlace'
+import ClinicasCercanas from '@/componentes/clinicas/ClinicasCercanas'
+import { metadatosPagina } from '@/utilidades/seo'
 
 export const metadata: Metadata = metadatosPagina({
   title: 'Veterinario cerca de mí — Clínicas veterinarias cercanas',
@@ -23,7 +23,7 @@ export default function CercaDeMiPage() {
         </p>
       </div>
 
-      <NearbyClient />
+      <ClinicasCercanas />
 
       {/* Texto SEO de apoyo */}
       <div className="mt-12 max-w-3xl mx-auto text-sm text-gray-500 space-y-3 border-t border-gray-100 pt-8">

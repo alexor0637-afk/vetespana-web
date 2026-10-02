@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
-import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDAD_EMOJI, nombreComunidad } from '@/types/clinic'
-import { ciudadSlug } from '@/lib/ciudad-slug'
-import { getAllClinics } from '@/lib/datos'
-import { metadatosPagina } from '@/lib/seo'
-import SearchBar from '@/components/SearchBar'
+import Link from '@/componentes/estructura/Enlace'
+import { CIUDADES_POR_COMUNIDAD, CIUDAD_DISPLAY, COMUNIDAD_EMOJI, nombreComunidad } from '@/tipos/clinica'
+import { ciudadSlug } from '@/utilidades/ciudad-slug'
+import { getAllClinics } from '@/utilidades/base-de-datos'
+import { metadatosPagina } from '@/utilidades/seo'
+import Buscador from '@/componentes/busqueda/Buscador'
 
 // Índice navegable de las ciudades que tienen clínicas (las vacías no se enlazan:
 // llevan noindex). Reparte enlaces internos a las páginas de ciudad → rastreo e indexación.
@@ -36,7 +36,7 @@ export default async function CiudadesPage() {
 
       {/* Buscar la ciudad directamente, sin recorrer toda la lista */}
       <div className="mb-10 max-w-2xl">
-        <SearchBar />
+        <Buscador />
       </div>
 
       <div className="space-y-10">

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
+import Link from '@/componentes/estructura/Enlace'
 import { notFound } from 'next/navigation'
-import { searchClinics } from '@/lib/datos'
-import { nombreCiudad, nombreComunidad } from '@/types/clinic'
-import { CIUDAD_POR_SLUG, ciudadSlug } from '@/lib/ciudad-slug'
-import { RUTA_URGENCIAS, ciudadesConPaginaUrgencias, rutaUrgenciasCiudad } from '@/lib/urgencias'
-import { SITIO, jsonLdSeguro, metadatosPagina } from '@/lib/seo'
-import ClinicGrid from '@/components/ClinicGrid'
+import { searchClinics } from '@/utilidades/base-de-datos'
+import { nombreCiudad, nombreComunidad } from '@/tipos/clinica'
+import { CIUDAD_POR_SLUG, ciudadSlug } from '@/utilidades/ciudad-slug'
+import { RUTA_URGENCIAS, ciudadesConPaginaUrgencias, rutaUrgenciasCiudad } from '@/utilidades/urgencias'
+import { SITIO, jsonLdSeguro, metadatosPagina } from '@/utilidades/seo'
+import CuadriculaClinicas from '@/componentes/clinicas/CuadriculaClinicas'
 
 // «Veterinario de urgencias 24h en {ciudad}»: solo para las ciudades con al menos dos
 // clínicas de 24 h (lib/urgencias.ts). Las demás no tienen esta página.
@@ -74,7 +74,7 @@ export default async function UrgenciasCiudadPage({ params }: Props) {
         </Link>
       </div>
 
-      <ClinicGrid initial={clinicas.slice(0, 24)} total={clinicas.length} filtro={{ ciudad, urgencias: true }} />
+      <CuadriculaClinicas initial={clinicas.slice(0, 24)} total={clinicas.length} filtro={{ ciudad, urgencias: true }} />
 
       <section className="mt-12 max-w-3xl space-y-3 text-gray-700">
         <h2 className="text-lg font-bold text-gray-900">Qué hacer ante una urgencia veterinaria en {display}</h2>

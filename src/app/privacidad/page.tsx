@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import Link from '@/components/Enlace'
-import { metadatosPagina } from '@/lib/seo'
-import { TITULAR, LEGAL_ACTUALIZADO } from '@/lib/legal'
+import Link from '@/componentes/estructura/Enlace'
+import { metadatosPagina } from '@/utilidades/seo'
+import { TITULAR, LEGAL_ACTUALIZADO } from '@/utilidades/legal'
 
 // Política de privacidad (RGPD arts. 13 y 14). Describe SOLO lo que la web hace de verdad:
 // si cambia un formulario, un proveedor o lo que se guarda, hay que actualizarla.

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import AltaClinica from '@/components/AltaClinica'
-import { clinicasMasDe } from '@/lib/datos'
-import { metadatosPagina } from '@/lib/seo'
+import AltaClinica from '@/componentes/formularios/AltaClinica'
+import { clinicasMasDe } from '@/utilidades/base-de-datos'
+import { metadatosPagina } from '@/utilidades/seo'
 
 export const metadata: Metadata = metadatosPagina({
   title: 'Añade tu clínica veterinaria',

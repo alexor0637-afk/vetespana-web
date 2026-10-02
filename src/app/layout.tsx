@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
-import AvisoCookies from '@/components/Cookies'
-import { clinicasMasDe } from '@/lib/datos'
+import Cabecera from '@/componentes/estructura/Cabecera'
+import Pie from '@/componentes/estructura/Pie'
+import AvisoCookies from '@/componentes/estructura/AvisoCookies'
+import { clinicasMasDe } from '@/utilidades/base-de-datos'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -65,9 +65,9 @@ export default function RootLayout({
         >
           Saltar al contenido
         </a>
-        <Header />
+        <Cabecera />
         <main id="contenido">{children}</main>
-        <Footer />
+        <Pie />
         {/* Google Analytics (y Clarity) solo se cargan si el visitante acepta las cookies */}
         <AvisoCookies />
       </body>
